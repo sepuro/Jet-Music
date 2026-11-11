@@ -100,10 +100,10 @@ jobs:
         - **Full Jet Music Rebranding**: New minimalist geometric delta-wing **Jet Music** icon across all densities (\`mdpi\` through \`xxxhdpi\`, adaptive icons, notifications, TV banner, and internal vectors) and complete localization rebranding across 50+ languages."
 
         if gh release view "$TAG" >/dev/null 2>&1; then
-          gh release upload "$TAG" release-assets/*.apk app/build/outputs/apk/**/*.apk --clobber
+          gh release upload "$TAG" release-assets/*.apk --clobber
           gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
         else
-          gh release create "$TAG" release-assets/*.apk app/build/outputs/apk/**/*.apk \
+          gh release create "$TAG" release-assets/*.apk \
             --title "$TITLE" \
             --notes "$NOTES" \
             --target "${{ github.sha }}"
