@@ -107,10 +107,10 @@ fun FloatingNavigationToolbar(
   isSelected: (Screens) -> Boolean,
   onItemClick: (Screens, Boolean) -> Unit,
 ) {
+  val surfaceColor = MaterialTheme.colorScheme.surface
   val isLightSurface =
-    remember(MaterialTheme.colorScheme.surface) {
-      val s = MaterialTheme.colorScheme.surface
-      (0.299f * s.red + 0.587f * s.green + 0.114f * s.blue) > 0.5f
+    remember(surfaceColor) {
+      (0.299f * surfaceColor.red + 0.587f * surfaceColor.green + 0.114f * surfaceColor.blue) > 0.5f
     }
   val toolbarContainerColor =
     if (pureBlack) Color.Black
