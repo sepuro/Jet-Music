@@ -1,18 +1,19 @@
-name: Android CI
+name: Android CI & Release
 
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
-    name: Build Signed APK
+    name: Build & Release Jet Music APK
     runs-on: ubuntu-latest
 
     steps:
@@ -45,7 +46,7 @@ jobs:
       run: |
         echo "$KEYSTORE_BASE64" | base64 -d > keystore.jks
 
-    - name: Build Release APK
+    - name: Build Signed Release APK
       if: ${{ env.KEYSTORE_BASE64 != '' }}
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -56,25 +57,54 @@ jobs:
         chmod +x gradlew
         ./gradlew assembleUniversalGmsRelease
 
-    - name: Build Debug APK (fork PR fallback without signing)
-      if: ${{ env.KEYSTORE_BASE64 == '' }}
-      env:
-        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+    - name: Build Jet Music Debug APK
       run: |
         mkdir -p "$HOME/.android"
-        keytool -genkeypair \
-          -keystore "$HOME/.android/debug.keystore" \
-          -storepass android \
-          -alias androiddebugkey \
-          -keypass android \
-          -dname "CN=Android Debug,O=Android,C=US" \
-          -keyalg RSA \
-          -validity 10000
+        if [ ! -f "$HOME/.android/debug.keystore" ]; then
+          keytool -genkeypair \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -keyalg RSA \
+            -validity 10000
+        fi
         chmod +x gradlew
         ./gradlew assembleUniversalFossDebug
+        mkdir -p release-assets
+        cp app/build/outputs/apk/universalFoss/debug/*.apk release-assets/Jet-Music-v1.0.0-universal.apk
 
-    - name: Upload Universal APK
+    - name: Upload Jet Music Universal APK Artifact
       uses: actions/upload-artifact@v7
       with:
-        name: Echo-Music-Universal-APK
-        path: app/build/outputs/apk/**/*.apk
+        name: Jet-Music-Universal-APK
+        path: |
+          app/build/outputs/apk/**/*.apk
+          release-assets/*.apk
+
+    - name: Publish GitHub Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        TAG="v1.0.0"
+        TITLE="Jet Music v1.0.0 — Initial Release"
+        NOTES="## Jet Music v1.0.0 — Initial Release
+
+        ### Highlights
+        - **Concurrency, Memory & Stability Fixes**: Fixed ExoPlayer/secondary player crossfade leaks, offloaded queue persistence & polling to \`Dispatchers.IO\`, guarded null-safety across \`MainActivity\`, \`PlayerConnection\`, \`MusicService\`, and \`YouTube\` inner-tube parsing, and closed leaked OkHttp response bodies.
+        - **Compose & Gradle Performance**: Eliminated state-mutation side effects inside \`derivedStateOf\`, stabilized LazyColumn keys and hoisted list filtering, and cleaned up duplicate Gradle & compiler configurations.
+        - **Simplified Light & Dark Theme System**: Streamlined appearance modes exclusively to **Light**, **Dark**, and **Follow System** for instant, flicker-free switching.
+        - **Minimalist Visual Refinement**: High-contrast alabaster & obsidian-slate palettes, subtle 1dp hairline borders, refined typographic hierarchy, and fluid spring animations.
+        - **Full Jet Music Rebranding**: New minimalist geometric delta-wing **Jet Music** icon across all densities (\`mdpi\` through \`xxxhdpi\`, adaptive icons, notifications, TV banner, and internal vectors) and complete localization rebranding across 50+ languages."
+
+        if gh release view "$TAG" >/dev/null 2>&1; then
+          gh release upload "$TAG" release-assets/*.apk app/build/outputs/apk/**/*.apk --clobber
+          gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
+        else
+          gh release create "$TAG" release-assets/*.apk app/build/outputs/apk/**/*.apk \
+            --title "$TITLE" \
+            --notes "$NOTES" \
+            --target "${{ github.sha }}"
+        fi
