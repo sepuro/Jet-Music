@@ -150,7 +150,7 @@ constructor(
       val profile =
         SavedEQProfile(
           id = "echo_tuning",
-          name = "Echo Tuning",
+          name = "Jet Music Tuning",
           deviceModel = "Equalizer",
           bands = bands,
           preamp = 0.0,

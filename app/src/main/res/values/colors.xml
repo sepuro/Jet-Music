@@ -2,8 +2,8 @@
 <resources>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
-    <color name="ic_launcher_static_background">#e63c28</color>
-    <color name="legacy_icon_background">#000000</color>
+    <color name="ic_launcher_static_background">#0B0B0E</color>
+    <color name="legacy_icon_background">#F5F5F7</color>
     
     <!-- Widget colors for light mode -->
     <color name="widget_text_primary">#1C1B1F</color>

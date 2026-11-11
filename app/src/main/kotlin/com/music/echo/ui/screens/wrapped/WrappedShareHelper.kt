@@ -208,7 +208,7 @@ object WrappedShareHelper {
       letterSpacing = -0.04f
       typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
-    canvas.drawText("Echo Music", marginX + 70f, 156f, wordmarkPaint)
+    canvas.drawText("Jet Music", marginX + 70f, 156f, wordmarkPaint)
 
     val yearPaint = Paint().apply {
       isAntiAlias = true
@@ -497,7 +497,7 @@ object WrappedShareHelper {
       typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
     canvas.drawText(
-      "CRAFTED WITH ECHO MUSIC • ${data.yearLabel} REPLAY • echomusic.app/wrapped",
+      "CRAFTED WITH JET MUSIC • ${data.yearLabel} REPLAY • echomusic.app/wrapped",
       width / 2f,
       1750f,
       footerPaint
@@ -525,11 +525,11 @@ object WrappedShareHelper {
         putExtra(Intent.EXTRA_STREAM, uri)
         putExtra(
           Intent.EXTRA_TEXT,
-          "Here is my ${data.yearLabel} Wrapped on Echo Music! 🎵\nTop Song: ${data.topSong?.title ?: "Various"}\nTop Artist: ${data.topArtist?.title ?: "Various"}\nPersona: ${data.dominantVibe}"
+          "Here is my ${data.yearLabel} Wrapped on Jet Music! 🎵\nTop Song: ${data.topSong?.title ?: "Various"}\nTop Artist: ${data.topArtist?.title ?: "Various"}\nPersona: ${data.dominantVibe}"
         )
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       }
-      val chooser = Intent.createChooser(intent, "Share Echo Wrapped").apply {
+      val chooser = Intent.createChooser(intent, "Share Jet Music Wrapped").apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       }
       context.startActivity(chooser)

@@ -426,7 +426,7 @@ fun FloatingToolbarOverflowMenuButton(
                 if (onWrappedClick != null) {
                   add(
                     Material3SettingsItem(
-                      title = { Text("Echo Wrapped") },
+                      title = { Text("Jet Music Wrapped") },
                       icon = painterResource(R.drawable.star),
                       onClick = {
                         scope.launch {

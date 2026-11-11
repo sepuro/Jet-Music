@@ -64,7 +64,7 @@ fun AboutScreen(
   LaunchedEffect(Unit) {
     withContext(Dispatchers.IO) {
       try {
-        val url = java.net.URL("https://api.github.com/repos/EchoMusicApp/Echo-Music/contributors")
+        val url = java.net.URL("https://api.github.com/repos/sepuro/Jet-Music/contributors")
         val json = url.openStream().bufferedReader().use { it.readText() }
         val array = JSONArray(json)
         val list = mutableListOf<Contributor>()
@@ -242,8 +242,8 @@ fun AboutScreen(
               AboutActionRow(
                   icon = painterResource(R.drawable.github),
                   title = "GitHub",
-                  subtitle = "EchoMusicApp/Echo-Music",
-                  onClick = { uriHandler.openUri("https://github.com/EchoMusicApp/Echo-Music") },
+                  subtitle = "sepuro/Jet-Music",
+                  onClick = { uriHandler.openUri("https://github.com/sepuro/Jet-Music") },
               )
               AboutDivider()
               AboutActionRow(
@@ -335,7 +335,7 @@ private fun AboutAppCard() {
     Spacer(Modifier.height(4.dp))
 
     Text(
-      text = if (rotation <= 90f) "Echo Music" else "Developed by Aditya",
+      text = if (rotation <= 90f) "Jet Music" else "Jet Music",
       style = MaterialTheme.typography.titleLarge,
       fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.onSurface,

@@ -346,12 +346,12 @@ fun WrappedScreen(
             ) {
               Image(
                 painter = painterResource(R.drawable.ic_launcher_nobg),
-                contentDescription = "Echo Music Logo",
+                contentDescription = "Jet Music Logo",
                 colorFilter = ColorFilter.tint(currentTheme.logoTint),
                 modifier = Modifier.size(24.dp)
               )
               Text(
-                "Echo Music",
+                "Jet Music",
                 style = MaterialTheme.typography.titleMedium.copy(
                   fontWeight = FontWeight.Black,
                   letterSpacing = (-0.5).sp,
@@ -615,7 +615,7 @@ private fun IntroSlideSpotify(
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
       Text(
-        text = "Every beat, replay, and late-night obsession that soundtracked your life on Echo Music.",
+        text = "Every beat, replay, and late-night obsession that soundtracked your life on Jet Music.",
         style = MaterialTheme.typography.bodyLarge.copy(
           fontSize = 16.sp,
           fontWeight = FontWeight.Medium,
@@ -2026,7 +2026,7 @@ private fun InsufficientDataView(
     ) {
       Image(
         painter = painterResource(R.drawable.ic_launcher_nobg),
-        contentDescription = "Echo Music",
+        contentDescription = "Jet Music",
         colorFilter = ColorFilter.tint(Color(0xFF00F5D4)),
         modifier = Modifier.size(64.dp)
       )
@@ -2057,7 +2057,7 @@ private fun InsufficientDataView(
       Spacer(modifier = Modifier.height(12.dp))
 
       Text(
-        text = "You've played ${state.songsPlayed} songs so far. Listen to at least ${state.minSongsRequired} tracks to unlock your personalized Echo Wrapped story.",
+        text = "You've played ${state.songsPlayed} songs so far. Listen to at least ${state.minSongsRequired} tracks to unlock your personalized Jet Music Wrapped story.",
         style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
         color = Color.White.copy(alpha = 0.7f),
         textAlign = TextAlign.Center

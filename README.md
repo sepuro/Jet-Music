@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/banner.png" alt="Echo Music Logo"/>
+  <img src="assets/banner.png" alt="Jet Music Logo"/>
 
   <p><b>A modern Android music app with ad-free streaming, synced lyrics, offline playback, and an intuitive user experience.</b></p>
 </div>
@@ -7,22 +7,22 @@
 ---
 
 ## Achievements
-<a href="https://trendshift.io/repositories/160234?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-160234" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/160234" alt="EchoMusicApp%2FEcho-Music | Trendshift" width="250" height="55"/></a> <a href="https://trendshift.io/repositories/160234?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-160234" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/160234/monthly?language=Kotlin" alt="EchoMusicApp%2FEcho-Music | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/160234?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-160234" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/160234" alt="EchoMusicApp%2FJet-Music | Trendshift" width="250" height="55"/></a> <a href="https://trendshift.io/repositories/160234?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-160234" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/160234/monthly?language=Kotlin" alt="EchoMusicApp%2FJet-Music | Trendshift" width="250" height="55"/></a>
 
 ---
 
 ## Overview
 
-Echo Music delivers a seamless, premium listening experience by leveraging YouTube Music's vast library — without the ads. It adds powerful extras including offline downloads, real-time synchronized lyrics, and environment-aware music recognition.
+Jet Music delivers a seamless, premium listening experience by leveraging YouTube Music's vast library — without the ads. It adds powerful extras including offline downloads, real-time synchronized lyrics, and environment-aware music recognition.
 
 > [!IMPORTANT]
-> **In-app OTA updates have been permanently removed.** Please update manually via the website. Echo Music is completely free and ad-free; the few ads shown during a manual download help support the ongoing development of this project. Please do not open issues requesting to bring this back. Thank you for your support!
+> **In-app OTA updates have been permanently removed.** Please update manually via the website. Jet Music is completely free and ad-free; the few ads shown during a manual download help support the ongoing development of this project. Please do not open issues requesting to bring this back. Thank you for your support!
 
 ---
 
 ## Community
 
-**Discord**: [Join the Echo Music Discord server](https://discord.gg/Xt5hgsJJuA)
+**Discord**: [Join the Jet Music Discord server](https://discord.gg/Xt5hgsJJuA)
 
 ---
 
@@ -87,7 +87,7 @@ Echo Music delivers a seamless, premium listening experience by leveraging YouTu
 
 ### What's New
 
-> **Music DNA (New!)** — Instantly uncover the backstory of any track. Echo Music queries Genius for deep track annotations, and intelligently falls back to Wikipedia API extracts for regional or obscure tracks where crowd-sourced meanings are missing.
+> **Music DNA (New!)** — Instantly uncover the backstory of any track. Jet Music queries Genius for deep track annotations, and intelligently falls back to Wikipedia API extracts for regional or obscure tracks where crowd-sourced meanings are missing.
 
 <br>
 
@@ -167,9 +167,9 @@ Echo Music delivers a seamless, premium listening experience by leveraging YouTu
 
 ## 320 kbps Audio Extension
 
-Want to experience crystal-clear, high-bitrate **320 kbps** audio in Echo Music?
+Want to experience crystal-clear, high-bitrate **320 kbps** audio in Jet Music?
 
-By default, YouTube Music delivers standard streaming quality. Echo Music includes built-in support for third-party extension sources, allowing you to stream high-fidelity **320 kbps** audio directly within the app using the official 320 kbps extension!
+By default, YouTube Music delivers standard streaming quality. Jet Music includes built-in support for third-party extension sources, allowing you to stream high-fidelity **320 kbps** audio directly within the app using the official 320 kbps extension!
 
 Visit the official repository to get started:  
 **[https://github.com/EchoMusicApp/320kbs-extension](https://github.com/EchoMusicApp/320kbs-extension)**
@@ -180,8 +180,8 @@ Visit the official repository to get started:
    - Go to [EchoMusicApp/320kbs-extension](https://github.com/EchoMusicApp/320kbs-extension).
    - Follow the setup and deployment instructions in the repository to deploy or obtain your extension server endpoint.
 
-2. **Add the Server in Echo Music**:
-   - Open the Echo Music app on your Android device.
+2. **Add the Server in Jet Music**:
+   - Open the Jet Music app on your Android device.
    - Tap your profile avatar in the top-right corner to open the **Account** sheet.
    - Tap **Extensions** to open the Extension Sources settings.
    - Scroll down to the **Add new** section and tap **Add Custom Server**.
@@ -190,16 +190,16 @@ Visit the official repository to get started:
 
 3. **Set Playback Priority**:
    - In the **Extensions** menu, ensure **Prefer Extension Audio** is toggled **ON**.
-   - With this enabled, Echo Music will automatically search and stream high-bitrate 320 kbps audio from your extension before falling back to YouTube Music.
+   - With this enabled, Jet Music will automatically search and stream high-bitrate 320 kbps audio from your extension before falling back to YouTube Music.
    - Enjoy studio-quality 320 kbps playback with real-time format and bitrate indicators on the now playing screen!
 
 ---
 
 ## Lossless Audio Extension
 
-Want to experience studio-master **Lossless (FLAC / ALAC)** and **Hi-Res Audio** (up to 24-bit / 192 kHz) directly in Echo Music?
+Want to experience studio-master **Lossless (FLAC / ALAC)** and **Hi-Res Audio** (up to 24-bit / 192 kHz) directly in Jet Music?
 
-Echo Music features a dedicated lossless audio pipeline with bit-perfect DAC pass-through, real-time Bluetooth codec telemetry (LDAC, aptX HD), and live format badges (`FLAC`, `Hi-Res`, `Bit-Perfect`). By connecting the official **Lossless Extension**, you can stream uncompressed, bit-perfect music from lossless providers directly within the app!
+Jet Music features a dedicated lossless audio pipeline with bit-perfect DAC pass-through, real-time Bluetooth codec telemetry (LDAC, aptX HD), and live format badges (`FLAC`, `Hi-Res`, `Bit-Perfect`). By connecting the official **Lossless Extension**, you can stream uncompressed, bit-perfect music from lossless providers directly within the app!
 
 Visit the official repository to get started:  
 **[https://github.com/EchoMusicApp/lossless-extension](https://github.com/EchoMusicApp/lossless-extension)**
@@ -210,8 +210,8 @@ Visit the official repository to get started:
    - Go to [EchoMusicApp/lossless-extension](https://github.com/EchoMusicApp/lossless-extension).
    - Follow the setup and deployment instructions to deploy your lossless provider instance (e.g., via Vercel, Railway, Docker, or self-hosted server) or obtain your custom lossless endpoint URL.
 
-2. **Add the Lossless Server in Echo Music**:
-   - Open the Echo Music app on your Android device.
+2. **Add the Lossless Server in Jet Music**:
+   - Open the Jet Music app on your Android device.
    - Tap your profile avatar (or the **Settings** gear icon) to open the **Account / Settings** sheet.
    - Tap **Extensions** to open the Extension Sources screen.
    - Scroll down to the **Add new** section and tap **Add Custom Server**.
@@ -222,9 +222,9 @@ Visit the official repository to get started:
 
 3. **Configure Playback Priority & Audio Pipeline**:
    - In the **Extensions** menu, ensure **Prefer Extension Audio** is toggled **ON**.
-   - When enabled, Echo Music will prioritize searching and streaming uncompressed FLAC/ALAC audio from your lossless server before falling back to YouTube Music.
+   - When enabled, Jet Music will prioritize searching and streaming uncompressed FLAC/ALAC audio from your lossless server before falling back to YouTube Music.
    - *(Optional — Audiophile Hardware)*:
-     - **External USB DAC**: Connect a USB DAC via OTG to automatically activate Echo Music's **Bit-Perfect Audio Pipeline**, bypassing Android's OS resampling engine (`Bit-Perfect • 24-bit / 192 kHz`).
+     - **External USB DAC**: Connect a USB DAC via OTG to automatically activate Jet Music's **Bit-Perfect Audio Pipeline**, bypassing Android's OS resampling engine (`Bit-Perfect • 24-bit / 192 kHz`).
      - **Hi-Res Bluetooth**: Connect headphones supporting LDAC, aptX HD, or LC3 to view real-time Bluetooth telemetry and the gold **Hi-Res** badge on the player.
 
 4. **Verify Lossless Playback**:
@@ -237,7 +237,7 @@ Visit the official repository to get started:
 
 ### Android Installation
 
-Download the latest pre-compiled APK from the [Releases Page](https://github.com/EchoMusicApp/Echo-Music/releases/latest).
+Download the latest pre-compiled APK from the [Releases Page](https://github.com/sepuro/Jet-Music/releases/latest).
 
 <details>
 <summary><b>Building from Source</b></summary>
@@ -246,8 +246,8 @@ Download the latest pre-compiled APK from the [Releases Page](https://github.com
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/EchoMusicApp/Echo-Music.git
-   cd Echo-Music
+   git clone https://github.com/sepuro/Jet-Music.git
+   cd Jet-Music
    ```
 
 2. **Configure Android SDK**
@@ -276,7 +276,7 @@ Download the latest pre-compiled APK from the [Releases Page](https://github.com
 
 ## Support the Project
 
-If Echo Music has been useful to you, consider supporting its development.
+If Jet Music has been useful to you, consider supporting its development.
 
 <div align="left">
   <table style="margin: 0 auto; border-collapse: collapse; border: none;">
@@ -312,7 +312,7 @@ If Echo Music has been useful to you, consider supporting its development.
 
 ## Contributors
 
-Without the support of this incredible open-source community, none of this would be possible. Thank you to everyone who has contributed to Echo Music!
+Without the support of this incredible open-source community, none of this would be possible. Thank you to everyone who has contributed to Jet Music!
 
 <!-- readme: contributors -start -->
 <table>
@@ -325,7 +325,7 @@ Without the support of this incredible open-source community, none of this would
 
 ## Special Thanks
 
-Echo Music stands on the shoulders of several excellent open-source projects. Sincere thanks to:
+Jet Music stands on the shoulders of several excellent open-source projects. Sincere thanks to:
 
 | Project                                                                                                                   | Description                                         |
 | :------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------- |
@@ -342,15 +342,15 @@ Echo Music stands on the shoulders of several excellent open-source projects. Si
 
 ### 1. 100% Free, Open-Source & Strictly Non-Commercial
 
-Echo Music is a fully open-source project (FOSS) created purely for educational purposes and personal use. We do not sell this application, nor do we monetize it in any way. There are no advertisements, no premium features, no subscriptions, and no hidden fees within the app. This project has absolutely no commercial value or financial intent.
+Jet Music is a fully open-source project (FOSS) created purely for educational purposes and personal use. We do not sell this application, nor do we monetize it in any way. There are no advertisements, no premium features, no subscriptions, and no hidden fees within the app. This project has absolutely no commercial value or financial intent.
 
 ### 2. A Custom Browser with Content Filtering
 
-Echo Music acts strictly as a specialized, third-party web browser and client. It simply parses the publicly available website content and APIs of YouTube and YouTube Music, rendering them in a custom user interface. The ad-free experience it provides is fundamentally no different from using a standard web browser (like Chrome, Firefox, or Brave) equipped with a common ad-blocking extension (such as uBlock Origin).
+Jet Music acts strictly as a specialized, third-party web browser and client. It simply parses the publicly available website content and APIs of YouTube and YouTube Music, rendering them in a custom user interface. The ad-free experience it provides is fundamentally no different from using a standard web browser (like Chrome, Firefox, or Brave) equipped with a common ad-blocking extension (such as uBlock Origin).
 
 ### 3. Support Content Creators
 
-We deeply respect the hard work of artists, musicians, and content creators. We strongly encourage all users to subscribe to [YouTube Premium](https://www.youtube.com/premium). Purchasing a Premium subscription is the best way to financially support the creators you listen to and ensure the continued growth of the platform. Echo Music is built as a proof-of-concept for developers and enthusiasts, not to harm creators' revenues.
+We deeply respect the hard work of artists, musicians, and content creators. We strongly encourage all users to subscribe to [YouTube Premium](https://www.youtube.com/premium). Purchasing a Premium subscription is the best way to financially support the creators you listen to and ensure the continued growth of the platform. Jet Music is built as a proof-of-concept for developers and enthusiasts, not to harm creators' revenues.
 
 ### 4. No Hosting of Copyrighted Material
 
@@ -358,7 +358,7 @@ We do not host, upload, distribute, or store any audio, video, or copyrighted me
 
 ### 5. User Responsibility & Legal Contact
 
-The software is provided "AS IS", without warranty of any kind. The developers of Echo Music do not encourage or condone piracy. Users are solely responsible for ensuring their usage of this app complies with their local copyright laws and the Terms of Service of the platforms they access.
+The software is provided "AS IS", without warranty of any kind. The developers of Jet Music do not encourage or condone piracy. Users are solely responsible for ensuring their usage of this app complies with their local copyright laws and the Terms of Service of the platforms they access.
 
 Because we do not host any media files, we cannot process DMCA takedown requests for audio or video content. However, if you represent a copyright holder or have legal concerns regarding the open-source code itself, please contact us via email at: [hello@echomusic.fun](mailto:hello@echomusic.fun)
 

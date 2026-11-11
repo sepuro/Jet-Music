@@ -723,7 +723,7 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
       nm?.createNotificationChannel(
         NotificationChannel(
           CHANNEL_ID,
-          getString(R.string.music_player),
+          getString(R.string.app_name),
           NotificationManager.IMPORTANCE_LOW
         )
       )
@@ -736,7 +736,7 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
         )
       val notification: Notification =
         NotificationCompat.Builder(this, CHANNEL_ID)
-          .setContentTitle(getString(R.string.music_player))
+          .setContentTitle(getString(R.string.app_name))
           .setContentText("")
           .setSmallIcon(R.drawable.ic_launcher_nobg)
           .setContentIntent(pending)
@@ -749,7 +749,7 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
     }
 
     setMediaNotificationProvider(
-      EchoNotificationProvider(this, { NOTIFICATION_ID }, CHANNEL_ID, R.string.music_player).apply {
+      EchoNotificationProvider(this, { NOTIFICATION_ID }, CHANNEL_ID, R.string.app_name).apply {
         setSmallIcon(R.drawable.ic_launcher_nobg)
       },
     )

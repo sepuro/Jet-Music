@@ -80,7 +80,7 @@ fun WelcomeDialog(onDismissRequest: () -> Unit) {
           )
         }
 
-        WelcomeSectionCard(title = "Support Echo") {
+        WelcomeSectionCard(title = "Support Jet Music") {
           WelcomeActionRow(
             icon = painterResource(R.drawable.coffee),
             title = "Buy Me a Coffee",
@@ -119,7 +119,7 @@ fun WelcomeDialog(onDismissRequest: () -> Unit) {
         Spacer(modifier = Modifier.height(4.dp))
 
         Button(
-          onClick = { uriHandler.openUri("https://github.com/EchoMusicApp/Echo-Music") },
+          onClick = { uriHandler.openUri("https://github.com/sepuro/Jet-Music") },
           modifier = Modifier.fillMaxWidth().height(50.dp),
           shape = RoundedCornerShape(16.dp),
           colors =
@@ -181,7 +181,7 @@ private fun WelcomeAppCard() {
       )
       Spacer(Modifier.height(4.dp))
       Text(
-        text = "Echo Music",
+        text = "Jet Music",
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onSurface,

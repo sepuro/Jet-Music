@@ -369,7 +369,7 @@
     <string name="backup_create_failed">ব্যাকআপ তৈরি করা যায়নি</string>
     <string name="restore_failed">ব্যাকআপ পুনরুদ্ধার করা যায়নি</string>
     <string name="discord_integration">Discord ইন্টিগ্রেশন</string>
-    <string name="discord_information">echomusic আপনার Discord অ্যাকাউন্টের স্ট্যাটাস সেট করতে KizzyRPC লাইব্রেরি ব্যবহার করে। এতে Discord Gateway সংযোগ ব্যবহৃত হয়, যা Discord-এর পরিষেবার শর্তাবলীর লঙ্ঘন হিসেবে বিবেচিত হতে পারে। তবে এ কারণে কোনো ব্যবহারকারীর অ্যাকাউন্ট স্থগিত হওয়ার ঘটনা জানা যায়নি। নিজ দায়িত্বে ব্যবহার করুন।\nchomusic শুধু আপনার টোকেন সংগ্রহ করবে এবং অন্য সবকিছু স্থানীয়ভাবে সংরক্ষিত থাকবে।</string>
+    <string name="discord_information">Jet Music আপনার Discord অ্যাকাউন্টের স্ট্যাটাস সেট করতে KizzyRPC লাইব্রেরি ব্যবহার করে। এতে Discord Gateway সংযোগ ব্যবহৃত হয়, যা Discord-এর পরিষেবার শর্তাবলীর লঙ্ঘন হিসেবে বিবেচিত হতে পারে। তবে এ কারণে কোনো ব্যবহারকারীর অ্যাকাউন্ট স্থগিত হওয়ার ঘটনা জানা যায়নি। নিজ দায়িত্বে ব্যবহার করুন।\nJet Music শুধু আপনার টোকেন সংগ্রহ করবে এবং অন্য সবকিছু স্থানীয়ভাবে সংরক্ষিত থাকবে।</string>
     <string name="dismiss">বন্ধ করুন</string>
     <string name="options">বিকল্প</string>
     <string name="preview">প্রিভিউ</string>
@@ -395,7 +395,7 @@
     <string name="listen_together_smart_resync">স্মার্ট নেটওয়ার্ক পুনঃসিঙ্ক</string>
     <string name="listen_together_smart_resync_desc">সংযোগ বিচ্ছিন্ন হওয়ার পর স্বয়ংক্রিয়ভাবে হোস্টের সঙ্গে সিঙ্ক করুন</string>
     <string name="spotify_import_title">Spotify থেকে আমদানি করুন</string>
-    <string name="spotify_import_desc">Spotify সংযুক্ত করুন, প্লেলিস্ট বেছে নিন এবং সেগুলো স্থানীয় Echo Music প্লেলিস্টে প্রতিলিপি করুন।</string>
+    <string name="spotify_import_desc">Spotify সংযুক্ত করুন, প্লেলিস্ট বেছে নিন এবং সেগুলো স্থানীয় Jet Music প্লেলিস্টে প্রতিলিপি করুন।</string>
     <string name="spotify_connect">Spotify সংযুক্ত করুন</string>
     <string name="spotify_refresh">Spotify লাইব্রেরি রিফ্রেশ করুন</string>
     <string name="spotify_select_sources">Spotify প্লেলিস্ট বেছে নিন</string>
@@ -439,15 +439,15 @@
     <string name="recognition_notification_processing">শনাক্ত করা হচ্ছে…</string>
     <string name="recognition_notification_no_match">কোনো মিল পাওয়া যায়নি</string>
     <string name="recognition_notification_failed">শনাক্তকরণ ব্যর্থ হয়েছে</string>
-    <string name="listen_on_echo_music">Echo Music-এ শুনুন</string>
+    <string name="listen_on_echo_music">Jet Music-এ শুনুন</string>
     <string name="qs_tile_music_recognizer">সঙ্গীত শনাক্ত করুন</string>
     <string name="listenbrainz_scrobbling">ListenBrainz স্ক্রবলিং</string>
     <string name="listenbrainz_scrobbling_description">আপনার শোনা ট্র্যাকগুলো স্বয়ংক্রিয়ভাবে ListenBrainz-এ জমা দিন</string>
     <string name="export_directory_unavailable">এই ডিভাইসে কোনো এক্সপোর্ট ডিরেক্টরি অ্যাক্সেস করা যাচ্ছে না। অনুগ্রহ করে ম্যানুয়ালি একটি নির্ধারণ করুন।</string>
     <string name="set_listenbrainz_token">ListenBrainz টোকেন সেট করুন</string>
-    <string name="youtube_decryption_settings">Echo Extractor</string>
+    <string name="youtube_decryption_settings">Jet Music Extractor</string>
     <string name="youtube_decryption_desc">এক্সট্র্যাক্টরের সেটিংস কনফিগার করুন</string>
-    <string name="youtube_decryption_support">Echo Extractor</string>
+    <string name="youtube_decryption_support">Jet Music Extractor</string>
     <string name="youtube_decryption_support_desc">YouTube প্লেব্যাকের কনফিগারেশন স্বয়ংক্রিয়ভাবে বের করে। সক্রিয় অবস্থায় লক করা।</string>
     <string name="force_update_cipher">কনফিগারেশন জোরপূর্বক আপডেট করুন</string>
     <string name="force_update_cipher_desc">এক্সট্র্যাক্টরের সর্বশেষ ওভাররাইড ম্যাপিং ডাউনলোড করুন। প্রতিদিন সর্বোচ্চ ৩টি আপডেট করা যাবে।</string>
@@ -771,7 +771,7 @@
     <string name="scrobble_delay_minutes_desc">স্ক্রবল বিলম্ব মিনিট সংক্রান্ত সেটিংস পরিচালনা করুন</string>
     <string name="ai_recommendations_refresh_desc">রেকমেন্ডেশন রিফ্রেশ করার জন্য AI সেটিংস কনফিগার করুন</string>
     <string name="last_updated_desc">সর্বশেষ আপডেট সংক্রান্ত সেটিংস পরিচালনা করুন</string>
-    <string name="youtube_decryption_settings_desc">Echo Extractor সংক্রান্ত সেটিংস পরিচালনা করুন</string>
+    <string name="youtube_decryption_settings_desc">Jet Music Extractor সংক্রান্ত সেটিংস পরিচালনা করুন</string>
     <string name="refresh_desc">রিফ্রেশ সংক্রান্ত সেটিংস পরিচালনা করুন</string>
     <string name="activity_status_desc">অ্যাক্টিভিটি স্ট্যাটাস সংক্রান্ত সেটিংস পরিচালনা করুন</string>
     <string name="platform_status_desc">প্ল্যাটফর্ম স্ট্যাটাস সংক্রান্ত সেটিংস পরিচালনা করুন</string>
@@ -795,14 +795,14 @@
         <item quantity="one">%1$d জন শিল্পী ম্যাপ করা হয়েছে</item>
         <item quantity="other">%1$d জন শিল্পী ম্যাপ করা হয়েছে</item>
     </plurals>
-    <string name="echo_brain_beta">Echo Brain (বিটা)</string>
+    <string name="echo_brain_beta">Jet Music Brain (বিটা)</string>
     <string name="echo_brain_data_management">ডেটা ব্যবস্থাপনা</string>
     <string name="echo_brain_discovered_genres">আবিষ্কৃত ঘরানা</string>
     <plurals name="echo_brain_distinct_genres_identified">
         <item quantity="one">%1$dটি স্বতন্ত্র ঘরানা শনাক্ত করা হয়েছে</item>
         <item quantity="other">%1$dটি স্বতন্ত্র ঘরানা শনাক্ত করা হয়েছে</item>
     </plurals>
-    <string name="echo_brain_enable">Echo Brain চালু করুন</string>
+    <string name="echo_brain_enable">Jet Music Brain চালু করুন</string>
     <string name="echo_brain_enable_desc">আপনার শোনার অভ্যাসের ওপর ভিত্তি করে স্বয়ংক্রিয়ভাবে AI রেকমেন্ডেশন যোগ করুন</string>
     <string name="echo_brain_export_failed">এক্সপোর্ট ব্যর্থ হয়েছে</string>
     <string name="echo_brain_export_profile">প্রোফাইল এক্সপোর্ট করুন</string>

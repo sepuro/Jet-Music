@@ -18,10 +18,10 @@ class JellyfinApiService @Inject constructor() {
 
   companion object {
     private const val TAG = "JellyfinApi"
-    private const val CLIENT_NAME = "EchoMusic"
+    private const val CLIENT_NAME = "JetMusic"
     private const val CLIENT_VERSION = "1.0"
     private const val DEVICE_NAME = "Android"
-    private const val DEVICE_ID = "EchoMusic-Android"
+    private const val DEVICE_ID = "JetMusic-Android"
   }
 
   private val okHttpClient: OkHttpClient =
