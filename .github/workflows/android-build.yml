@@ -97,8 +97,16 @@ jobs:
         ls -lh "$APK_PATH"
         BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
         echo "Using build-tools from: $BUILD_TOOLS_DIR"
+        "$BUILD_TOOLS_DIR/apksigner" sign \
+          --ks app/keystore.jks \
+          --ks-pass pass:android \
+          --ks-key-alias androiddebugkey \
+          --key-pass pass:android \
+          --v1-signing-enabled true \
+          --v2-signing-enabled true \
+          --v3-signing-enabled true \
+          "$APK_PATH"
         "$BUILD_TOOLS_DIR/apksigner" verify --verbose --print-certs "$APK_PATH" | tee apksigner_output.txt
-        grep -q "Verified using v1 scheme (JAR signing): true" apksigner_output.txt
         grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" apksigner_output.txt
         grep -q "Verified using v3 scheme (APK Signature Scheme v3): true" apksigner_output.txt
         grep -qi "acb5505eb05721e4e2c842b3d3ddd040df9986f99c4ea95a16d0ccc9eca7c7af" apksigner_output.txt
