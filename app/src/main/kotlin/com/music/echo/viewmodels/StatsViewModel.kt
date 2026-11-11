@@ -16,6 +16,7 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -262,7 +263,7 @@ constructor(
   val firstEvent = database.firstEvent().stateIn(viewModelScope, SharingStarted.Lazily, null)
 
   init {
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       mostPlayedArtists.collect { artists ->
         artists
           .map { it.artist }
@@ -277,7 +278,7 @@ constructor(
           }
       }
     }
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       mostPlayedAlbums.collect { albums ->
         albums
           .filter { it.album.songCount == 0 }

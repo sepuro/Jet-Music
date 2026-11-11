@@ -1,6 +1,7 @@
 package echo.music.iad1tya.data
 
 import echo.music.iad1tya.models.SponsorBlockSegment
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -13,13 +14,11 @@ import timber.log.Timber
 @Singleton
 class SponsorBlockRepository @Inject constructor() {
   private val client = OkHttpClient.Builder().build()
-  private val cache = mutableMapOf<String, List<SponsorBlockSegment>>()
+  private val cache = ConcurrentHashMap<String, List<SponsorBlockSegment>>()
 
   suspend fun getSkipSegments(videoId: String): List<SponsorBlockSegment> =
     withContext(Dispatchers.IO) {
-      if (cache.containsKey(videoId)) {
-        return@withContext cache[videoId] ?: emptyList()
-      }
+      cache[videoId]?.let { return@withContext it }
 
       try {
         val categories =
@@ -31,15 +30,16 @@ class SponsorBlockRepository @Inject constructor() {
 
         val request = Request.Builder().url(url).build()
 
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) {
-          if (response.code != 404) {
-            Timber.w("SponsorBlock API failed for video $videoId with code ${response.code}")
+        val responseBody =
+          client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+              if (response.code != 404) {
+                Timber.w("SponsorBlock API failed for video $videoId with code ${response.code}")
+              }
+              return@withContext emptyList()
+            }
+            response.body?.string() ?: return@withContext emptyList()
           }
-          return@withContext emptyList()
-        }
-
-        val responseBody = response.body?.string() ?: return@withContext emptyList()
         val jsonArray = JSONArray(responseBody)
 
         val segments = mutableListOf<SponsorBlockSegment>()

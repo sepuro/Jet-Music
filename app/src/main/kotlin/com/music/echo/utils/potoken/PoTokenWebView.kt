@@ -300,13 +300,15 @@ private constructor(
               .toHeaders()
           )
           .url(url)
-      val response =
-        withContext(Dispatchers.IO) { httpClient.newCall(requestBuilder.build()).execute() }
-      val httpCode = response.code
-      if (httpCode != 200) {
+      val (httpCode, body) =
+        withContext(Dispatchers.IO) {
+          httpClient.newCall(requestBuilder.build()).execute().use { response ->
+            response.code to if (response.code == 200) response.body?.string() else null
+          }
+        }
+      if (httpCode != 200 || body == null) {
         onInitializationErrorCloseAndCancel(PoTokenException("Invalid response code: $httpCode"))
       } else {
-        val body = withContext(Dispatchers.IO) { response.body!!.string() }
         handleResponseBody(body)
       }
     }

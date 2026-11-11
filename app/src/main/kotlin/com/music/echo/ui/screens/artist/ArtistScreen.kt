@@ -174,6 +174,22 @@ fun ArtistScreen(
   val artistVideoUrl by viewModel.artistVideoUrl.collectAsState()
   val artistVideoSong by viewModel.artistVideoSong.collectAsState()
   val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
+  val filteredLibrarySongs =
+    remember(librarySongs, hideExplicit) {
+      if (hideExplicit) {
+        librarySongs.filter { !it.song.explicit }
+      } else {
+        librarySongs
+      }
+    }
+  val filteredLibraryAlbums =
+    remember(libraryAlbums, hideExplicit) {
+      if (hideExplicit) {
+        libraryAlbums.filter { !it.album.explicit }
+      } else {
+        libraryAlbums
+      }
+    }
   val showArtistDescription by
     rememberPreference(key = ShowArtistDescriptionKey, defaultValue = true)
   val showArtistSubscriberCount by
@@ -696,15 +712,9 @@ fun ArtistScreen(
               )
             }
 
-            val filteredLibrarySongs =
-              if (hideExplicit) {
-                librarySongs.filter { !it.song.explicit }
-              } else {
-                librarySongs
-              }
             itemsIndexed(
               items = filteredLibrarySongs,
-              key = { index, item -> "local_song_${item.id}_$index" }
+              key = { _, item -> "local_song_${item.id}" }
             ) { index, song ->
               SongListItem(
                 song = song,
@@ -772,19 +782,13 @@ fun ArtistScreen(
             }
 
             item(key = "local_albums_list") {
-              val filteredLibraryAlbums =
-                if (hideExplicit) {
-                  libraryAlbums.filter { !it.album.explicit }
-                } else {
-                  libraryAlbums
-                }
               LazyRow(
                 contentPadding =
                   WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
               ) {
                 itemsIndexed(
                   items = filteredLibraryAlbums,
-                  key = { index, it -> "local_album_${it.id}_${index}" }
+                  key = { _, it -> "local_album_${it.id}" }
                 ) { _, album ->
                   AlbumGridItem(
                     album = album,
@@ -831,15 +835,16 @@ fun ArtistScreen(
             }
 
             if ((section.items.firstOrNull() as? SongItem)?.album != null) {
+              val uniqueSectionSongs = section.items.distinctBy { it.id }
               itemsIndexed(
-                items = section.items.distinctBy { it.id },
+                items = uniqueSectionSongs,
                 key = { _, it -> "youtube_song_${it.id}" },
               ) { index, song ->
                 YouTubeListItem(
                   item = song as SongItem,
                   isActive = mediaMetadata?.id == song.id,
                   isPlaying = isPlaying,
-                  shape = listItemShape(index, section.items.distinctBy { it.id }.size),
+                  shape = listItemShape(index, uniqueSectionSongs.size),
                   trailingContent = {
                     IconButton(
                       onClick = {

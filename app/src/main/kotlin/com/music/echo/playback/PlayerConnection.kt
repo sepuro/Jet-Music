@@ -29,6 +29,8 @@ import echo.music.iad1tya.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -55,6 +57,8 @@ class PlayerConnection(
 
   val service = binder.service
   private val playerReadinessFlow = service.isPlayerReady
+  private val connectionScope =
+    CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
 
   private fun getPlayerSafe(): ExoPlayer {
     return try {
@@ -103,9 +107,9 @@ class PlayerConnection(
     playWhenReady = MutableStateFlow(initialState.second)
     isPlaying =
       combine(playbackState, playWhenReady) { state, ready -> ready && state != STATE_ENDED }
-        .stateIn(scope, SharingStarted.Lazily, initialState.third)
+        .stateIn(connectionScope, SharingStarted.Lazily, initialState.third)
 
-    scope.launch {
+    connectionScope.launch {
       playerReadinessFlow.collect { ready ->
         isPlayerInitialized.value = ready
         if (ready) {
@@ -126,12 +130,19 @@ class PlayerConnection(
         if (isCasting) castPlaying else localPlaying
       }
       .stateIn(
-        scope,
+        connectionScope,
         SharingStarted.Lazily,
-        player.playbackState != STATE_ENDED && player.playWhenReady
+        isPlaying.value
       )
 
-  val mediaMetadata = MutableStateFlow(player.currentMetadata)
+  val mediaMetadata =
+    MutableStateFlow(
+      try {
+        player.currentMetadata
+      } catch (_: Exception) {
+        service.currentMediaMetadata.value
+      }
+    )
   val currentSong = mediaMetadata.flatMapLatest { database.song(it?.id) }
   val currentLyrics =
     mediaMetadata.flatMapLatest { mediaMetadata -> database.lyrics(mediaMetadata?.id) }
@@ -146,7 +157,7 @@ class PlayerConnection(
         androidx.media3.common.C.TIME_UNSET
       }
       echo.music.iad1tya.playback.PlaybackCutoffGuard.computeEffectiveDuration(meta?.duration, playerDur)
-    }.stateIn(scope, SharingStarted.Lazily, 0L)
+    }.stateIn(connectionScope, SharingStarted.Lazily, 0L)
 
   val queueTitle = MutableStateFlow<String?>(null)
   val queueWindows = MutableStateFlow<List<Timeline.Window>>(emptyList())
@@ -184,7 +195,7 @@ class PlayerConnection(
   init {
     try {
 
-      scope.launch {
+      connectionScope.launch {
         service.playerFlow.collect { newPlayer ->
           if (newPlayer != null && newPlayer != attachedPlayer) {
             updateAttachedPlayer(newPlayer)
@@ -192,7 +203,7 @@ class PlayerConnection(
         }
       }
 
-      scope.launch {
+      connectionScope.launch {
         service.currentMediaMetadata.collect { newMeta ->
           if (newMeta != null) {
             mediaMetadata.value = newMeta
@@ -559,7 +570,7 @@ class PlayerConnection(
   private fun startSponsorBlockPolling() {
     sponsorBlockJob?.cancel()
     sponsorBlockJob =
-      scope.launch {
+      connectionScope.launch {
         val sponsorBlockEnabledFlow =
           context.dataStore.data.map {
             (try {
@@ -590,7 +601,11 @@ class PlayerConnection(
               if (currentSegments.isNotEmpty()) {
                 val currentPosSec = player.currentPosition / 1000f
                 for (segment in currentSegments) {
-                  if (currentPosSec >= segment.segment[0] && currentPosSec < segment.segment[1]) {
+                  if (
+                    segment.segment.size >= 2 &&
+                      currentPosSec >= segment.segment[0] &&
+                      currentPosSec < segment.segment[1]
+                  ) {
                     Timber.d(
                       "SponsorBlock: skipping segment ${segment.category} from ${segment.segment[0]} to ${segment.segment[1]}"
                     )
@@ -609,6 +624,7 @@ class PlayerConnection(
   fun dispose() {
     try {
       sponsorBlockJob?.cancel()
+      connectionScope.cancel()
       attachedPlayer?.removeListener(this)
       attachedPlayer = null
       Timber.tag(TAG).d("PlayerConnection disposed successfully")

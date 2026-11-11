@@ -18,9 +18,11 @@ import echo.music.iad1tya.utils.dataStore
 import echo.music.iad1tya.utils.get
 import java.time.LocalDateTime
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -37,8 +39,8 @@ constructor(
   val cachedSongs: StateFlow<List<Song>> = _cachedSongs
 
   init {
-    viewModelScope.launch {
-      while (true) {
+    viewModelScope.launch(Dispatchers.IO) {
+      while (isActive) {
         val hideExplicit = context.dataStore.get(HideExplicitKey, false)
         val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
         val cachedIds = playerCache.keys.toSet()

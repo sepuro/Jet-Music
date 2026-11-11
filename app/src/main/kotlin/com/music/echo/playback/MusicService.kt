@@ -202,6 +202,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -379,12 +381,22 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
     object : Player.Listener {
       override fun onPlayerError(error: PlaybackException) {
         Timber.tag(TAG).e(error, "Secondary player error")
-        secondaryPlayer?.stop()
-        secondaryPlayer?.clearMediaItems()
+        releasePrebuffered()
+        secondaryPlayer?.let { sec ->
+          playerDuckProcessors.remove(sec)
+          playerSilenceProcessors.remove(sec)
+          playerStereoWideners.remove(sec)
+          playerEqProcessors.remove(sec)?.let { dspController.removeAudioProcessor(it) }
+          sec.removeListener(this)
+          sec.stop()
+          sec.clearMediaItems()
+          sec.release()
+        }
         secondaryPlayer = null
       }
     }
 
+  private val saveQueueMutex = Mutex()
   private var scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
   private val binder = MusicBinder()
@@ -2035,12 +2047,12 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
     }
 
     originalQueueSize = 0
-    if (queue.preloadItem != null) {
-      player.setMediaItem(queue.preloadItem!!.toMediaItem())
+    queue.preloadItem?.let { preloadItem ->
+      player.setMediaItem(preloadItem.toMediaItem())
       player.prepare()
-        if (player.playWhenReady) {
-          player.play()
-        }
+      if (player.playWhenReady) {
+        player.play()
+      }
       player.playWhenReady = playWhenReady
     }
     return scope.launch(SilentHandler) {
@@ -4575,38 +4587,42 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
           playbackState = player.playbackState
         )
 
-      runCatching {
-          filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-            ObjectOutputStream(fos).use { oos -> oos.writeObject(persistQueue) }
-          }
-          Timber.tag(TAG).d("Queue saved successfully")
-        }
-        .onFailure {
-          Timber.tag(TAG).e(it, "Failed to save queue")
-          reportException(it)
-        }
+      scope.launch(Dispatchers.IO + kotlinx.coroutines.NonCancellable) {
+        saveQueueMutex.withLock {
+          runCatching {
+              filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
+                ObjectOutputStream(fos).use { oos -> oos.writeObject(persistQueue) }
+              }
+              Timber.tag(TAG).d("Queue saved successfully")
+            }
+            .onFailure {
+              Timber.tag(TAG).e(it, "Failed to save queue")
+              reportException(it)
+            }
 
-      runCatching {
-          filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
-            ObjectOutputStream(fos).use { oos -> oos.writeObject(persistAutomix) }
-          }
-          Timber.tag(TAG).d("Automix saved successfully")
-        }
-        .onFailure {
-          Timber.tag(TAG).e(it, "Failed to save automix")
-          reportException(it)
-        }
+          runCatching {
+              filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
+                ObjectOutputStream(fos).use { oos -> oos.writeObject(persistAutomix) }
+              }
+              Timber.tag(TAG).d("Automix saved successfully")
+            }
+            .onFailure {
+              Timber.tag(TAG).e(it, "Failed to save automix")
+              reportException(it)
+            }
 
-      runCatching {
-          filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-            ObjectOutputStream(fos).use { oos -> oos.writeObject(persistPlayerState) }
-          }
-          Timber.tag(TAG).d("Player state saved successfully")
+          runCatching {
+              filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
+                ObjectOutputStream(fos).use { oos -> oos.writeObject(persistPlayerState) }
+              }
+              Timber.tag(TAG).d("Player state saved successfully")
+            }
+            .onFailure {
+              Timber.tag(TAG).e(it, "Failed to save player state")
+              reportException(it)
+            }
         }
-        .onFailure {
-          Timber.tag(TAG).e(it, "Failed to save player state")
-          reportException(it)
-        }
+      }
     } catch (e: Exception) {
       Timber.tag(TAG).e(e, "Error during queue save operation")
       reportException(e)
@@ -4619,7 +4635,14 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
     crossfadeTriggerJob?.cancel()
     crossfadeJob?.cancel()
     releasePrebuffered()
-    secondaryPlayer?.release()
+    secondaryPlayer?.let { sec ->
+      playerDuckProcessors.remove(sec)
+      playerSilenceProcessors.remove(sec)
+      playerStereoWideners.remove(sec)
+      playerEqProcessors.remove(sec)?.let { dspController.removeAudioProcessor(it) }
+      sec.removeListener(secondaryPlayerListener)
+      sec.release()
+    }
     secondaryPlayer = null
     if (fadingPlayer != null) cleanupCrossfade()
 
@@ -4648,6 +4671,7 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
     releaseMediaSessionSafely()
     player.removeListener(this)
     player.removeListener(sleepTimer)
+    playerDuckProcessors.remove(player)
     playerSilenceProcessors.remove(player)
     playerStereoWideners.remove(player)
     playerEqProcessors.remove(player)?.let { dspController.removeAudioProcessor(it) }
@@ -5679,6 +5703,7 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
       fadingLoudnessEnhancer = null
     }
     fadingPlayer?.let { playerDuckProcessors.remove(it) }
+    fadingPlayer?.let { playerSilenceProcessors.remove(it) }
     fadingPlayer?.let { playerStereoWideners.remove(it) }
     fadingPlayer?.let { playerEqProcessors.remove(it)?.let { eq -> dspController.removeAudioProcessor(eq) } }
     fadingPlayer?.stop()

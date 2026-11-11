@@ -156,13 +156,11 @@ android {
       isDebuggable = false
       signingConfig = signingConfigs.getByName("release")
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      buildConfigField("String", "ARCHITECTURE", "\"release\"")
     }
     debug {
       applicationIdSuffix = ".debug"
       isDebuggable = true
       signingConfig = signingConfigs.getByName("debug")
-      buildConfigField("String", "ARCHITECTURE", "\"debug\"")
     }
   }
 
@@ -175,8 +173,12 @@ android {
   kotlin {
     jvmToolchain(21)
     compilerOptions {
-      freeCompilerArgs.add("-Xannotation-default-target=param-property")
+      freeCompilerArgs.addAll(
+        "-Xannotation-default-target=param-property",
+        "-opt-in=kotlin.RequiresOptIn",
+      )
       jvmTarget.set(JvmTarget.JVM_21)
+      suppressWarnings.set(false)
     }
   }
 
@@ -226,15 +228,6 @@ protobuf {
         create("kotlin") { option("lite") }
       }
     }
-  }
-}
-
-ksp {}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-  compilerOptions {
-    freeCompilerArgs.addAll("-opt-in=kotlin.RequiresOptIn")
-    suppressWarnings.set(false)
   }
 }
 

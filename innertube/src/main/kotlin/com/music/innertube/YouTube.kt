@@ -1357,7 +1357,7 @@ object YouTube {
         }
 
         val contents =
-          if (tabs != null && tabs.size >= tabIndex) {
+          if (tabs != null && tabIndex in tabs.indices) {
             tabs[tabIndex].tabRenderer.content?.sectionListRenderer?.contents?.firstOrNull()
           } else {
             println("[UPLOAD_DEBUG] No tabs or tabIndex out of range")
@@ -1898,7 +1898,7 @@ object YouTube {
             ?.tabbedRenderer
             ?.watchNextTabbedResultsRenderer
             ?.tabs
-            ?.get(0)
+            ?.firstOrNull()
             ?.tabRenderer
             ?.content
             ?.musicQueueRenderer
@@ -1909,7 +1909,7 @@ object YouTube {
           ?.tabbedRenderer
           ?.watchNextTabbedResultsRenderer
           ?.tabs
-          ?.get(0)
+          ?.firstOrNull()
           ?.tabRenderer
           ?.content
           ?.musicQueueRenderer
@@ -2207,17 +2207,15 @@ object YouTube {
       ?.body
       ?.transcriptBodyRenderer
       ?.cueGroups
-      ?.joinToString(separator = "\n") { group ->
-        val time = group.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs
-        val text =
-          group.transcriptCueGroupRenderer.cues[0]
-            .transcriptCueRenderer
-            .cue
-            .simpleText
-            .trim('♪')
-            .trim(' ')
+      ?.mapNotNull { group ->
+        val cue =
+          group.transcriptCueGroupRenderer.cues.firstOrNull()?.transcriptCueRenderer
+            ?: return@mapNotNull null
+        val time = cue.startOffsetMs
+        val text = cue.cue.simpleText.trim('♪').trim(' ')
         "[%02d:%02d.%03d]$text".format(time / 60000, (time / 1000) % 60, time % 1000)
-      }!!
+      }
+      ?.joinToString(separator = "\n")!!
   }
 
   suspend fun visitorData(): Result<String> = runCatching {

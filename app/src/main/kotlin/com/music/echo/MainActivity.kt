@@ -295,6 +295,7 @@ class MainActivity : ComponentActivity() {
       override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
         if (service is MusicBinder) {
           try {
+            playerConnection?.dispose()
             playerConnection =
               PlayerConnection(this@MainActivity, service, database, lifecycleScope)
             Timber.tag("MainActivity").d("PlayerConnection created successfully")
@@ -306,6 +307,7 @@ class MainActivity : ComponentActivity() {
             lifecycleScope.launch {
               delay(500)
               try {
+                playerConnection?.dispose()
                 playerConnection =
                   PlayerConnection(this@MainActivity, service, database, lifecycleScope)
                 listenTogetherManager.setPlayerConnection(playerConnection)
@@ -354,9 +356,9 @@ class MainActivity : ComponentActivity() {
     val wasPlaying = playerConnection?.isPlaying?.value == true
     listenTogetherManager.setPlayerConnection(null)
     playerConnection?.dispose()
+    playerConnection = null
     if (dataStore.get(StopMusicOnTaskClearKey, false) && wasPlaying && isFinishing) {
       stopService(Intent(this, MusicService::class.java))
-      playerConnection = null
     }
   }
 
@@ -427,16 +429,6 @@ class MainActivity : ComponentActivity() {
     }
 
     lifecycleScope.launch {
-      val aiRecommendationsEnabled = dataStore.data.map { it[AiRecommendationsKey] ?: false }.first()
-      if (aiRecommendationsEnabled) {
-        val lastUpdate = dataStore.data.map { it[LastAiRecommendationUpdateDayKey] ?: 0L }.first()
-        val currentDay = System.currentTimeMillis() / (1000 * 60 * 60 * 24)
-        if (lastUpdate != currentDay) {
-          dataStore.edit { it[LastAiRecommendationUpdateDayKey] = currentDay }
-          AiRecommendationHelper.generateRecommendations(this@MainActivity)
-        }
-      }
-
       dataStore.data
         .map {
           (try {
@@ -887,14 +879,15 @@ class MainActivity : ComponentActivity() {
 
         val shouldShowNavigationBar =
           remember(currentRoute, navigationItemRoutes) {
-            currentRoute == null ||
-              navigationItemRoutes.contains(currentRoute) ||
-              currentRoute!!.startsWith("search/") ||
-              currentRoute!!.startsWith("album/") ||
-              currentRoute!!.startsWith("online_playlist/") ||
-              currentRoute!!.startsWith("local_playlist/") ||
-              currentRoute!!.startsWith("spotify_playlist/") ||
-              currentRoute!!.startsWith("artist/")
+            val route = currentRoute
+            route == null ||
+              navigationItemRoutes.contains(route) ||
+              route.startsWith("search/") ||
+              route.startsWith("album/") ||
+              route.startsWith("online_playlist/") ||
+              route.startsWith("local_playlist/") ||
+              route.startsWith("spotify_playlist/") ||
+              route.startsWith("artist/")
           }
 
         val isLandscape = configuration.containerDpSize.width > configuration.containerDpSize.height
@@ -1045,16 +1038,18 @@ class MainActivity : ComponentActivity() {
 
         LaunchedEffect(navBackStackEntry) {
           if (inSearchScreen) {
-            val searchQuery =
-              withContext(Dispatchers.IO) {
-                val rawQuery = navBackStackEntry?.arguments?.getString("query")!!
-                try {
-                  URLDecoder.decode(rawQuery, "UTF-8")
-                } catch (e: IllegalArgumentException) {
-                  rawQuery
+            val rawQuery = navBackStackEntry?.arguments?.getString("query")
+            if (rawQuery != null) {
+              val searchQuery =
+                withContext(Dispatchers.IO) {
+                  try {
+                    URLDecoder.decode(rawQuery, "UTF-8")
+                  } catch (e: IllegalArgumentException) {
+                    rawQuery
+                  }
                 }
-              }
-            onQueryChange(TextFieldValue(searchQuery, TextRange(searchQuery.length)))
+              onQueryChange(TextFieldValue(searchQuery, TextRange(searchQuery.length)))
+            }
           } else if (
             navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }
           ) {
@@ -1117,10 +1112,11 @@ class MainActivity : ComponentActivity() {
           if (activeIntent != null) {
             handleWidgetAction(activeIntent)
           }
-          if (pendingIntent != null) {
-            handleDeepLinkIntent(pendingIntent!!, navController)
-            handleRecognitionIntent(pendingIntent!!, navController)
-            handleAssistantSearchIntent(pendingIntent!!, navController)
+          val capturedPendingIntent = pendingIntent
+          if (capturedPendingIntent != null) {
+            handleDeepLinkIntent(capturedPendingIntent, navController)
+            handleRecognitionIntent(capturedPendingIntent, navController)
+            handleAssistantSearchIntent(capturedPendingIntent, navController)
             pendingIntent = null
           } else if (
             intent != null &&

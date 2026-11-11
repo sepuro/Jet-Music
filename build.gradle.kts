@@ -56,14 +56,8 @@ allprojects {
         resolutionStrategy {
             force("com.google.protobuf:protobuf-javalite:4.36.2")
             force("com.github.TeamNewPipe:nanojson:c7a6c1c08d16b6d5ecded34758e6415e07be2166")
-        }
-        exclude(group = "com.google.protobuf", module = "protobuf-java")
-    }
-}
-allprojects {
-    configurations.all {
-        resolutionStrategy {
             force("org.jetbrains.kotlin:kotlin-metadata-jvm:2.4.20")
         }
+        exclude(group = "com.google.protobuf", module = "protobuf-java")
     }
 }
