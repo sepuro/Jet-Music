@@ -188,11 +188,21 @@ constructor(
       playerConnection.mediaMetadata.value
         ?.takeIf { playerConnection.player.mediaItemCount > 0 }
         ?.let { MusicFlowItem(it.toMusicFlowSongItem(), MusicFlowSource.NOW_PLAYING) }
-    session.start(nowPlaying)
-
     val currentId = playerConnection.player.currentMediaItem?.mediaId
+
+    if (!session.isStarted) {
+      session.start(nowPlaying)
+    } else if (!flowCoordinator.ownsPlayback() && nowPlaying != null) {
+      val existingIndex = session.indexOf(nowPlaying.songId)
+      if (existingIndex >= 0) {
+        session.select(existingIndex)
+      } else {
+        session.reset(nowPlaying)
+      }
+    }
+
     val playingIndex = session.indexOf(currentId)
-    if (flowCoordinator.ownsPlayback() && playingIndex >= 0) {
+    if (playingIndex >= 0 && (flowCoordinator.ownsPlayback() || currentId == nowPlaying?.songId)) {
       session.select(playingIndex)
     }
     canRestore.value = flowCoordinator.canRestorePreviousQueue()

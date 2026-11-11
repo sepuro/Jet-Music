@@ -15,7 +15,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -123,6 +122,12 @@ fun MusicFlowPage(
     label = "HeartBurstScale",
   )
 
+  var isVideoReady by remember(song.id, showCanvas) { mutableStateOf(false) }
+  val staticArtAlpha by animateFloatAsState(
+    targetValue = if (showCanvas && isVideoReady) 0f else 1f,
+    label = "StaticArtAlpha",
+  )
+
   Box(
     modifier =
       modifier
@@ -151,17 +156,26 @@ fun MusicFlowPage(
         ),
     )
 
-    // Full-screen high-resolution crisp album art
+    // Full-screen high-resolution crisp album art (fades out when canvas/video renders)
     AsyncImage(
       model = song.thumbnail.resize(1920, 1920),
       contentDescription = null,
       contentScale = ContentScale.Crop,
-      modifier = Modifier.fillMaxSize(),
+      modifier = Modifier.fillMaxSize().graphicsLayer { alpha = staticArtAlpha },
     )
 
     // Full-screen canvas video loop if available
-    if (showCanvas && isCurrentPlayback) {
-      AmbientCanvasBackground(modifier = Modifier.fillMaxSize())
+    if (showCanvas) {
+      AmbientCanvasBackground(
+        modifier = Modifier.fillMaxSize(),
+        songId = song.id,
+        songTitle = song.title,
+        artistName = artistName,
+        albumTitle = song.album?.name,
+        durationSec = song.duration?.toLong(),
+        isPlayingOverride = if (isCurrentPlayback) isPlaying else true,
+        onVideoReadyChanged = { isVideoReady = it },
+      )
     }
 
     // 2. TOP FLOATING LYRIC PREVIEW CAPSULE (Reel Style)
@@ -359,7 +373,8 @@ private fun MetadataSection(
       fontWeight = FontWeight.Bold,
       color = Color.White,
       maxLines = 1,
-      modifier = Modifier.fillMaxWidth().basicMarquee(initialDelayMillis = 1500, velocity = 30.dp),
+      overflow = TextOverflow.Ellipsis,
+      modifier = Modifier.fillMaxWidth(),
     )
     Spacer(Modifier.height(4.dp))
     Row(
@@ -372,7 +387,8 @@ private fun MetadataSection(
         fontWeight = FontWeight.Medium,
         color = Color.White.copy(alpha = 0.75f),
         maxLines = 1,
-        modifier = Modifier.weight(1f).basicMarquee(initialDelayMillis = 1500, velocity = 30.dp),
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.weight(1f),
       )
       if (primaryArtistId != null) {
         Spacer(Modifier.width(12.dp))

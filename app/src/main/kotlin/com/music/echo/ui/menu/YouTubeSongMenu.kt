@@ -3,7 +3,6 @@ package echo.music.iad1tya.ui.menu
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -231,7 +230,6 @@ fun YouTubeSongMenu(
       headlineContent = {
         Text(
           text = song.title,
-          modifier = Modifier.basicMarquee(),
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
         )

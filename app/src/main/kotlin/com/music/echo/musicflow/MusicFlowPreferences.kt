@@ -15,7 +15,7 @@ data class MusicFlowPreferences(
   val enabled: Boolean = true,
   val autoplay: Boolean = true,
   val autoNext: Boolean = true,
-  val animatedBackground: Boolean = false,
+  val animatedBackground: Boolean = true,
   val lyrics: Boolean = true,
   val cellularPrefetch: Boolean = true,
   val hideRecent: Boolean = true,
@@ -30,7 +30,7 @@ data class MusicFlowPreferences(
         animatedBackground =
           preferences[MusicFlowAnimatedBackgroundKey]
             ?: preferences[CanvasThumbnailAnimationKey]
-            ?: false,
+            ?: true,
         lyrics = preferences[MusicFlowLyricsKey] ?: true,
         cellularPrefetch = preferences[MusicFlowCellularPrefetchKey] ?: true,
         hideRecent = preferences[MusicFlowHideRecentKey] ?: true,

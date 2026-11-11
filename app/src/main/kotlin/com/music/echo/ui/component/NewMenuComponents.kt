@@ -2,7 +2,6 @@ package echo.music.iad1tya.ui.component
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -94,9 +93,8 @@ fun NewActionButton(
         style = MaterialTheme.typography.labelMedium,
         color = animatedContent,
         textAlign = TextAlign.Center,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.basicMarquee()
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
       )
     }
   }

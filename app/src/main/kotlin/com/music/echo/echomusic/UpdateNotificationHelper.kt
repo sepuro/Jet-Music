@@ -31,8 +31,10 @@ object UpdateNotificationHelper {
       nm.createNotificationChannel(channel)
     }
 
-    val apkUrl = "https://echomusic.fun"
-    val intent = Intent(Intent.ACTION_VIEW, apkUrl.toUri())
+    val intent =
+      Intent(context, echo.music.iad1tya.MainActivity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+      }
 
     val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     val pending = PendingIntent.getActivity(context, NOTIFICATION_ID, intent, flags)

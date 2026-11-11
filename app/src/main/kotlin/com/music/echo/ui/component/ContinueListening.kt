@@ -47,10 +47,14 @@ fun EpisodeProgress.toSongItem() =
  */
 fun LazyListScope.continueListening(episodes: List<EpisodeProgress>, keyPrefix: String) {
   if (episodes.isEmpty()) return
-  item(key = "${keyPrefix}_continue_listening_title") {
+  item(key = "${keyPrefix}_continue_listening_title", contentType = "section_title") {
     NavigationTitle(title = stringResource(R.string.continue_listening))
   }
-  itemsIndexed(episodes, key = { _, it -> "${keyPrefix}_continue_listening_${it.id}" }) {
+  itemsIndexed(
+    items = episodes,
+    key = { _, it -> "${keyPrefix}_continue_listening_${it.id}" },
+    contentType = { _, _ -> "yt_list_item" }
+  ) {
     index,
     episode ->
     val playerConnection = LocalPlayerConnection.current

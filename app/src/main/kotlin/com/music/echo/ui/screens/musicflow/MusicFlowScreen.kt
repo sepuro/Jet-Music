@@ -142,7 +142,7 @@ fun MusicFlowScreen(
   val currentMediaId = mediaMetadata?.id
 
   val reduceMotion = remember { context.isReducedMotion() }
-  val showCanvas = preferences.animatedBackground && !preferences.dataSaver && !reduceMotion
+  val showCanvas = preferences.animatedBackground && !preferences.dataSaver
   val allowArtPrefetch = remember(preferences) {
     !preferences.dataSaver && (preferences.cellularPrefetch || !context.isActiveNetworkMetered())
   }

@@ -221,10 +221,6 @@ fun MiniPlayer(
     val bgTint =
       if (useGlass) Color.Transparent
       else if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
-    android.util.Log.d(
-      "COLOR_MATCH",
-      "MiniPlayer - isFollowTheme: $isFollowTheme, globalPureBlack: $globalPureBlack, pureBlackMini: $pureBlackMini, pureBlack final: $pureBlack, bgTint: $bgTint"
-    )
 
     val tabBarContentModifier =
       if (useGlass) {
@@ -463,7 +459,7 @@ private fun NewMiniPlayer(progressState: ProgressState, modifier: Modifier = Mod
             else Modifier.fillMaxWidth()
           )
           .height(MiniPlayerHeight)
-          .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
+          .graphicsLayer { translationX = offsetXAnimatable.value }
           .let { m ->
             val shape = RoundedCornerShape(percent = 50)
             if (useGlass) {
@@ -595,7 +591,13 @@ private fun NewMiniPlayerThumbnail(
     ) {
       mediaMetadata?.let { metadata ->
         AsyncImage(
-          model = ImageRequest.Builder(LocalContext.current).data(metadata.thumbnailUrl).build(),
+          model =
+            ImageRequest.Builder(LocalContext.current)
+              .data(metadata.thumbnailUrl)
+              .size(144, 144)
+              .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+              .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+              .build(),
           contentDescription = null,
           contentScale = ContentScale.Crop,
           modifier = Modifier.fillMaxSize().clip(CircleShape)
@@ -820,7 +822,7 @@ private fun LegacyMiniPlayer(progressState: ProgressState, modifier: Modifier = 
       verticalAlignment = Alignment.CenterVertically,
       modifier =
         Modifier.fillMaxSize()
-          .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
+          .graphicsLayer { translationX = offsetXAnimatable.value }
           .padding(end = 12.dp),
     ) {
       Box(Modifier.weight(1f)) {
@@ -942,7 +944,13 @@ private fun LegacyMiniMediaInfo(
       Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
 
       AsyncImage(
-        model = ImageRequest.Builder(LocalContext.current).data(mediaMetadata.thumbnailUrl).build(),
+        model =
+          ImageRequest.Builder(LocalContext.current)
+            .data(mediaMetadata.thumbnailUrl)
+            .size(144, 144)
+            .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .build(),
         contentDescription = null,
         contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(ThumbnailCornerRadius)),
@@ -1281,9 +1289,10 @@ private fun MiniPlayerControls(
 
     Spacer(modifier = Modifier.width(12.dp))
 
+    val animateWavy = effectiveIsPlaying && wavyPlayPause
     val cookieIndent by
       androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (effectiveIsPlaying) 0.08f else 0f,
+        targetValue = if (animateWavy) 0.08f else 0f,
         animationSpec =
           androidx.compose.animation.core.tween(
             durationMillis = 300,
@@ -1292,23 +1301,38 @@ private fun MiniPlayerControls(
         label = "cookieIndent",
       )
 
-    val infiniteTransition =
-      androidx.compose.animation.core.rememberInfiniteTransition(label = "rotation")
-    val rotation by
-      infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec =
-          androidx.compose.animation.core.infiniteRepeatable(
-            animation =
-              androidx.compose.animation.core.tween(
-                8000,
-                easing = androidx.compose.animation.core.LinearEasing
+    val rotation =
+      if (animateWavy) {
+        val infiniteTransition =
+          androidx.compose.animation.core.rememberInfiniteTransition(label = "rotation")
+        val rot by
+          infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec =
+              androidx.compose.animation.core.infiniteRepeatable(
+                animation =
+                  androidx.compose.animation.core.tween(
+                    8000,
+                    easing = androidx.compose.animation.core.LinearEasing
+                  ),
+                repeatMode = androidx.compose.animation.core.RepeatMode.Restart
               ),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Restart
-          ),
-        label = "rotation"
-      )
+            label = "rotation"
+          )
+        rot
+      } else {
+        0f
+      }
+
+    val buttonShape =
+      remember(wavyPlayPause, (cookieIndent * 100).roundToInt()) {
+        if (wavyPlayPause && cookieIndent > 0.001f) {
+          PolygonCookieShape(sides = 9, indent = cookieIndent)
+        } else {
+          CircleShape
+        }
+      }
 
     Box(
       contentAlignment = Alignment.Center,
@@ -1334,7 +1358,7 @@ private fun MiniPlayerControls(
             .graphicsLayer {
               rotationZ = rotation
               clip = true
-              shape = if (wavyPlayPause) PolygonCookieShape(sides = 9, indent = cookieIndent) else androidx.compose.foundation.shape.CircleShape
+              shape = buttonShape
             }
             .background(primaryColor)
       )

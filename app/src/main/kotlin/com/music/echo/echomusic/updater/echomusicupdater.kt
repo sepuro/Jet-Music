@@ -341,7 +341,7 @@ fun UpdateScreen(navController: NavHostController) {
                     } else {
                       val urlToDownload =
                         currentStatus.apkUrl
-                          ?: "https://github.com/sepuro/Jet-Music/releases/download/${currentStatus.version}/echomusic.apk"
+                          ?: "https://github.com/sepuro/Jet-Music/releases/download/${currentStatus.version}/Jet-Music-${currentStatus.version}-universal.apk"
 
                       val constraints =
                         Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
@@ -631,30 +631,175 @@ private fun formatGitHubDate(githubDate: String): String =
     githubDate
   }
 
-fun isNewerVersion(latestVersion: String, currentVersion: String): Boolean {
-  val latestVersionClean = latestVersion.removePrefix("b").removePrefix("v")
-  val currentVersionClean = currentVersion.removePrefix("b").removePrefix("v")
+/**
+ * Strict Semantic Versioning (SemVer) comparison: returns true ONLY if [remoteTag] > [currentVersion].
+ * Strips leading 'v'/'V'/'b'/'B' prefixes and pre-release/build suffixes ('-...', '+...').
+ */
+fun isNewerVersion(remoteTag: String, currentVersion: String): Boolean {
+  fun parseSemVer(version: String): List<Int> {
+    val cleaned =
+      version
+        .trim()
+        .removePrefix("v")
+        .removePrefix("V")
+        .removePrefix("b")
+        .removePrefix("B")
+        .substringBefore("-")
+        .substringBefore("+")
+        .trim()
+    val parts = cleaned.split(".")
+    return listOf(
+      parts.getOrNull(0)?.filter { it.isDigit() }?.toIntOrNull() ?: 0,
+      parts.getOrNull(1)?.filter { it.isDigit() }?.toIntOrNull() ?: 0,
+      parts.getOrNull(2)?.filter { it.isDigit() }?.toIntOrNull() ?: 0,
+    )
+  }
 
-  val latestParts = latestVersionClean.split(".").map { it.toIntOrNull() ?: 0 }
-  val currentParts = currentVersionClean.split(".").map { it.toIntOrNull() ?: 0 }
+  val remoteParts = parseSemVer(remoteTag)
+  val currentParts = parseSemVer(currentVersion)
 
-  for (i in 0 until maxOf(latestParts.size, currentParts.size)) {
-    val latest = latestParts.getOrElse(i) { 0 }
-    val current = currentParts.getOrElse(i) { 0 }
-    when {
-      latest > current -> return true
-      latest < current -> return false
+  for (i in 0..2) {
+    val remote = remoteParts[i]
+    val current = currentParts[i]
+    if (remote > current) return true
+    if (remote < current) return false
+  }
+  return false
+}
+
+fun extractApkAssetFromRelease(targetRelease: JSONObject): Pair<String, String> {
+  val assets = targetRelease.optJSONArray("assets") ?: return "" to ""
+  val arch = BuildConfig.ARCHITECTURE.lowercase()
+  var fallbackUrl = ""
+  var fallbackSizeMB = ""
+
+  for (j in 0 until assets.length()) {
+    val asset = assets.getJSONObject(j)
+    val assetName = asset.optString("name", "")
+    if (!assetName.endsWith(".apk", ignoreCase = true)) continue
+
+    val sizeInMB = String.format(java.util.Locale.US, "%.1f", asset.optLong("size", 0L) / (1024.0 * 1024.0))
+    val downloadUrl = asset.optString("browser_download_url", "")
+    if (downloadUrl.isEmpty()) continue
+
+    val lowerName = assetName.lowercase()
+    if (fallbackUrl.isEmpty() || (!lowerName.contains("debug") && fallbackUrl.lowercase().contains("debug"))) {
+      fallbackUrl = downloadUrl
+      fallbackSizeMB = sizeInMB
+    }
+
+    if (!lowerName.contains("debug") && (lowerName.contains(arch) || lowerName.contains("universal"))) {
+      return downloadUrl to sizeInMB
     }
   }
+  return fallbackUrl to fallbackSizeMB
+}
 
-  if (latestVersionClean == currentVersionClean) {
-    val latestIsBeta = latestVersion.startsWith("b")
-    val currentIsBeta = currentVersion.startsWith("b")
-
-    if (currentIsBeta && !latestIsBeta) return true
+fun installApk(context: Context, apkFile: File) {
+  if (!apkFile.exists()) return
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    if (!context.packageManager.canRequestPackageInstalls()) {
+      val permissionIntent =
+        Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+          data = Uri.parse("package:${context.packageName}")
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+      context.startActivity(permissionIntent)
+      return
+    }
   }
+  val uri =
+    FileProvider.getUriForFile(
+      context,
+      "${context.packageName}.FileProvider",
+      apkFile
+    )
+  val installIntent =
+    Intent(Intent.ACTION_VIEW).apply {
+      setDataAndType(uri, "application/vnd.android.package-archive")
+      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+  ContextCompat.startActivity(context, installIntent, null)
+}
 
-  return false
+suspend fun downloadApkWithProgress(
+  context: Context,
+  apkUrl: String,
+  version: String,
+  onProgress: (Float) -> Unit,
+  onSuccess: (File) -> Unit,
+  onError: (String) -> Unit,
+) {
+  withContext(Dispatchers.IO) {
+    var connection: java.net.HttpURLConnection? = null
+    try {
+      val downloadDir =
+        File(
+          context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
+            ?: context.externalCacheDir
+            ?: context.cacheDir,
+          "echo_updates"
+        )
+      if (!downloadDir.exists()) {
+        downloadDir.mkdirs()
+      }
+      val safeVersion = version.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+      val targetFile = File(downloadDir, "Jet-Music-$safeVersion.apk")
+
+      connection =
+        (URL(apkUrl).openConnection() as java.net.HttpURLConnection).apply {
+          requestMethod = "GET"
+          instanceFollowRedirects = true
+          connectTimeout = 15_000
+          readTimeout = 30_000
+          setRequestProperty("User-Agent", "Jet-Music-Updater")
+          connect()
+        }
+
+      if (connection.responseCode !in 200..299) {
+        val code = connection.responseCode
+        withContext(Dispatchers.Main) {
+          onError(context.getString(R.string.server_error, code.toString()))
+        }
+        return@withContext
+      }
+
+      val totalBytes = connection.contentLengthLong
+      connection.inputStream.use { input ->
+        java.io.FileOutputStream(targetFile).use { output ->
+          val buffer = ByteArray(8192)
+          var bytesRead: Int
+          var downloadedBytes = 0L
+          var lastReportedProgress = -1f
+
+          while (input.read(buffer).also { bytesRead = it } != -1) {
+            output.write(buffer, 0, bytesRead)
+            downloadedBytes += bytesRead
+            if (totalBytes > 0L) {
+              val progress = (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+              if (progress - lastReportedProgress >= 0.01f || progress >= 1f) {
+                lastReportedProgress = progress
+                withContext(Dispatchers.Main) { onProgress(progress) }
+              }
+            }
+          }
+          output.flush()
+        }
+      }
+
+      withContext(Dispatchers.Main) {
+        onProgress(1f)
+        onSuccess(targetFile)
+      }
+    } catch (e: Exception) {
+      Log.e("UpdateDownload", "Failed to download APK: ${e.message}", e)
+      withContext(Dispatchers.Main) {
+        onError(e.localizedMessage ?: context.getString(R.string.download_failed))
+      }
+    } finally {
+      connection?.disconnect()
+    }
+  }
 }
 
 suspend fun checkForUpdate(
@@ -674,15 +819,15 @@ suspend fun checkForUpdate(
 ) {
   withContext(Dispatchers.IO) {
     try {
-      val url = URL("https://api.github.com/repos/sepuro/Jet-Music/releases/latest")
-      val json = url.openStream().bufferedReader().use { it.readText() }
+      val json =
+        openTimedStream("https://api.github.com/repos/sepuro/Jet-Music/releases/latest")
+          .bufferedReader()
+          .use { it.readText() }
       val targetRelease = JSONObject(json)
 
       val currentVersion = BuildConfig.VERSION_NAME
       val targetTagName = targetRelease.getString("tag_name")
-      val currentClean = currentVersion.removePrefix("b").removePrefix("v").trim()
-      val targetClean = targetTagName.removePrefix("b").removePrefix("v").trim()
-      val shouldShow = currentClean != targetClean
+      val shouldShow = isNewerVersion(targetTagName, currentVersion)
 
       if (shouldShow) {
         val tagWithPrefix = targetRelease.getString("tag_name")
@@ -692,11 +837,12 @@ suspend fun checkForUpdate(
         var description: String? = null
         var imageUrl: String? = null
         try {
-          val changelogUrl =
-            URL(
-              "https://github.com/sepuro/Jet-Music/releases/download/$tagWithPrefix/changelog.json"
-            )
-          val changelogJson = changelogUrl.openStream().bufferedReader().use { it.readText() }
+          val changelogJson =
+            openTimedStream(
+                "https://github.com/sepuro/Jet-Music/releases/download/$tagWithPrefix/changelog.json"
+              )
+              .bufferedReader()
+              .use { it.readText() }
           val changelogData = JSONObject(changelogJson)
 
           description = changelogData.optString("description").takeIf { it.isNotEmpty() }
@@ -728,25 +874,9 @@ suspend fun checkForUpdate(
           changelogList.addAll(parsedSections)
         }
 
-        val publishedAt = targetRelease.getString("published_at")
+        val publishedAt = targetRelease.optString("published_at", "")
         val formattedReleaseDate = formatGitHubDate(publishedAt)
-        val assets = targetRelease.getJSONArray("assets")
-
-        var apkSizeInMB = ""
-        var apkDownloadUrl = ""
-        for (j in 0 until assets.length()) {
-          val asset = assets.getJSONObject(j)
-          val assetName = asset.getString("name")
-          if (
-            assetName.endsWith(".apk", ignoreCase = true) &&
-              !assetName.lowercase().contains("debug")
-          ) {
-            val apkSizeInBytes = asset.getLong("size")
-            apkSizeInMB = String.format("%.1f", apkSizeInBytes / (1024.0 * 1024.0))
-            apkDownloadUrl = asset.getString("browser_download_url")
-            break
-          }
-        }
+        val (apkDownloadUrl, apkSizeInMB) = extractApkAssetFromRelease(targetRelease)
 
         if (apkDownloadUrl.isNotEmpty()) {
           withContext(Dispatchers.Main) {
@@ -765,6 +895,7 @@ suspend fun checkForUpdate(
         }
       }
 
+      saveUpdateAvailableState(context, false)
       withContext(Dispatchers.Main) {
         onSuccess(currentVersion, false, emptyList(), "", "", null, null, null)
       }
@@ -801,6 +932,8 @@ private fun openTimedStream(url: String): java.io.InputStream =
     .apply {
       connectTimeout = 15_000
       readTimeout = 15_000
+      setRequestProperty("User-Agent", "Jet-Music-Updater")
+      setRequestProperty("Accept", "application/vnd.github+json")
     }
     .getInputStream()
 

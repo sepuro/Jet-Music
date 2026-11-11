@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -485,7 +484,7 @@ fun SongGridItem(
         fontWeight = FontWeight.Bold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.basicMarquee().fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
       )
     },
     subtitle = {
@@ -546,6 +545,7 @@ fun ArtistListItem(
         model =
           ImageRequest.Builder(LocalContext.current)
             .data(artist.artist.thumbnailUrl?.resize(544, 544))
+            .size(144, 144)
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -581,6 +581,7 @@ fun ArtistGridItem(
         model =
           ImageRequest.Builder(LocalContext.current)
             .data(artist.artist.thumbnailUrl?.resize(544, 544))
+            .size(360, 360)
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -717,7 +718,7 @@ fun AlbumGridItem(
         fontWeight = FontWeight.Bold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.basicMarquee().fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
       )
     },
     subtitle = {
@@ -903,7 +904,7 @@ fun PlaylistGridItem(
         fontWeight = FontWeight.Bold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.basicMarquee().fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
       )
     },
     subtitle = {
@@ -1181,7 +1182,7 @@ fun YouTubeGridItem(
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
-        modifier = Modifier.basicMarquee().fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
       )
     },
     subtitle = {
@@ -1369,6 +1370,7 @@ fun ItemThumbnail(
         model =
           ImageRequest.Builder(LocalContext.current)
             .data(thumbnailUrl?.resize(544, 544))
+            .size(360, 360)
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1437,6 +1439,7 @@ fun LocalThumbnail(
       model =
         ImageRequest.Builder(LocalContext.current)
           .data(thumbnailUrl)
+          .size(360, 360)
           .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
           .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
           .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1533,7 +1536,7 @@ fun PlaylistThumbnail(
         model =
           ImageRequest.Builder(LocalContext.current)
             .data(thumbnails[0].resize(544, 544))
-            .apply {}
+            .size(360, 360)
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1552,7 +1555,7 @@ fun PlaylistThumbnail(
               model =
                 ImageRequest.Builder(LocalContext.current)
                   .data(thumbnails.getOrNull(index)?.resize(544, 544))
-                  .apply {}
+                  .size(180, 180)
                   .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                   .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                   .networkCachePolicy(coil3.request.CachePolicy.ENABLED)

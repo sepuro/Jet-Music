@@ -755,7 +755,7 @@ private fun SharedTransitionScope.ExpandedTabs(
   ) {
     if (targetWidth > 0.dp) {
       Box(
-        Modifier.offset(x = animatedOffset)
+        Modifier.graphicsLayer { translationX = animatedOffset.toPx() }
           .width(animatedWidth)
           .height(52.dp)
           .clip(shapes.tabShape)
@@ -966,7 +966,9 @@ private fun Modifier.animateEnterExitTab(
 
       graphicsLayer {
         alpha = animatedAlpha
-        renderEffect = BlurEffect(radiusX = animatedBlur, radiusY = animatedBlur)
+        renderEffect =
+          if (animatedBlur > 0.5f) BlurEffect(radiusX = animatedBlur, radiusY = animatedBlur)
+          else null
       }
     }
   }

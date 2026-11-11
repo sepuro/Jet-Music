@@ -45,7 +45,7 @@ fun MusicFlowSettings(
   scrollBehavior: TopAppBarScrollBehavior,
 ) {
   val scrollState = rememberScrollState()
-  val (inheritedCanvas) = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = false)
+  val (inheritedCanvas) = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true)
 
   @Composable
   fun toggle(

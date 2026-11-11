@@ -63,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
@@ -108,10 +109,6 @@ fun FloatingNavigationToolbar(
 ) {
   val toolbarContainerColor =
     if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
-  android.util.Log.d(
-    "COLOR_MATCH",
-    "NavBar - pureBlack parameter: $pureBlack, toolbarContainerColor: $toolbarContainerColor"
-  )
   val toolbarColors =
     FloatingToolbarDefaults.standardFloatingToolbarColors(
       toolbarContainerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -242,7 +239,7 @@ private fun ToolbarItemsContainer(
       if (targetWidth > 0.dp) {
         Box(
           modifier =
-            Modifier.offset(x = slidingPillOffset)
+            Modifier.graphicsLayer { translationX = slidingPillOffset.toPx() }
               .width(slidingPillWidth)
               .fillMaxHeight()
               .background(

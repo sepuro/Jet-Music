@@ -76,6 +76,7 @@ fun CanvasArtworkPlayer(
   isPlaying: Boolean,
   clipStartMs: Long? = null,
   clipEndMs: Long? = null,
+  onVideoReadyChanged: (Boolean) -> Unit = {},
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
@@ -87,6 +88,10 @@ fun CanvasArtworkPlayer(
   var textureViewRef by remember { mutableStateOf<TextureView?>(null) }
   var currentVideoWidth by remember { mutableIntStateOf(0) }
   var currentVideoHeight by remember { mutableIntStateOf(0) }
+
+  LaunchedEffect(isVideoReady) {
+    onVideoReadyChanged(isVideoReady)
+  }
 
   val okHttpClient = remember {
     OkHttpClient.Builder()
@@ -112,6 +117,7 @@ fun CanvasArtworkPlayer(
         for ((k, v) in extraHeaders) {
           builder.header(k, v)
         }
+        YouTube.cookie?.let { cookie -> builder.header("Cookie", cookie) }
 
         chain.proceed(builder.build())
       }
@@ -130,6 +136,7 @@ fun CanvasArtworkPlayer(
           CacheDataSource.Factory()
             .setCache(downloadCache as androidx.media3.datasource.cache.Cache)
             .setUpstreamDataSourceFactory(upstreamFactory)
+            .setCacheWriteDataSinkFactory(null)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         } else {
           upstreamFactory
@@ -190,7 +197,9 @@ fun CanvasArtworkPlayer(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-          if (playbackState == Player.STATE_ENDED) {
+          if (playbackState == Player.STATE_READY && exoPlayer.videoSize.width > 0 && exoPlayer.videoSize.height > 0) {
+            isVideoReady = true
+          } else if (playbackState == Player.STATE_ENDED) {
             exoPlayer.seekTo(0)
             exoPlayer.play()
           }
@@ -233,7 +242,14 @@ fun CanvasArtworkPlayer(
     exoPlayer.playWhenReady = isPlaying
   }
 
-  DisposableEffect(exoPlayer) { onDispose { exoPlayer.release() } }
+  DisposableEffect(exoPlayer) {
+    onDispose {
+      onVideoReadyChanged(false)
+      textureViewRef?.let { exoPlayer.clearVideoTextureView(it) }
+      textureViewRef = null
+      exoPlayer.release()
+    }
+  }
 
   val alpha by
     animateFloatAsState(
@@ -263,8 +279,13 @@ fun CanvasArtworkPlayer(
         setBackgroundColor(android.graphics.Color.TRANSPARENT)
       }
     },
-    update = { _ ->
-      textureViewRef?.let { tv ->
+    update = { frameLayout ->
+      val tv = (frameLayout.getChildAt(0) as? TextureView) ?: textureViewRef
+      if (tv != null) {
+        if (textureViewRef !== tv) {
+          textureViewRef = tv
+        }
+        exoPlayer.setVideoTextureView(tv)
         updateTextureTransform(tv, tv.width, tv.height, currentVideoWidth, currentVideoHeight)
       }
     },

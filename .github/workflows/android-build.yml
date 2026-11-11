@@ -73,7 +73,7 @@ jobs:
         chmod +x gradlew
         ./gradlew assembleUniversalFossDebug
         mkdir -p release-assets
-        cp app/build/outputs/apk/universalFoss/debug/*.apk release-assets/Jet-Music-v1.0.0-universal.apk
+        cp app/build/outputs/apk/universalFoss/debug/*.apk release-assets/Jet-Music-v1.5.0-universal.apk
 
     - name: Upload Jet Music Universal APK Artifact
       uses: actions/upload-artifact@v7
@@ -88,16 +88,14 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        TAG="v1.0.0"
-        TITLE="Jet Music v1.0.0 — Initial Release"
-        NOTES="## Jet Music v1.0.0 — Initial Release
+        TAG="v1.5.0"
+        TITLE="Jet Music v1.5.0 — 120fps Scroll, Music Flow Video & Native OTA Updater"
+        NOTES="## Jet Music v1.5.0
 
-        ### Highlights
-        - **Concurrency, Memory & Stability Fixes**: Fixed ExoPlayer/secondary player crossfade leaks, offloaded queue persistence & polling to \`Dispatchers.IO\`, guarded null-safety across \`MainActivity\`, \`PlayerConnection\`, \`MusicService\`, and \`YouTube\` inner-tube parsing, and closed leaked OkHttp response bodies.
-        - **Compose & Gradle Performance**: Eliminated state-mutation side effects inside \`derivedStateOf\`, stabilized LazyColumn keys and hoisted list filtering, and cleaned up duplicate Gradle & compiler configurations.
-        - **Simplified Light & Dark Theme System**: Streamlined appearance modes exclusively to **Light**, **Dark**, and **Follow System** for instant, flicker-free switching.
-        - **Minimalist Visual Refinement**: High-contrast alabaster & obsidian-slate palettes, subtle 1dp hairline borders, refined typographic hierarchy, and fluid spring animations.
-        - **Full Jet Music Rebranding**: New minimalist geometric delta-wing **Jet Music** icon across all densities (\`mdpi\` through \`xxxhdpi\`, adaptive icons, notifications, TV banner, and internal vectors) and complete localization rebranding across 50+ languages."
+        ### Runtime Architecture & Performance Fixes
+        - **120fps Scroll & Compose Jank Elimination**: Removed unbounded \`.basicMarquee()\` animations from list/grid items (\`Items.kt\`, \`NewMenuComponents.kt\`, \`YouTubeSongMenu.kt\`, \`MusicFlowPage.kt\`, \`Queue.kt\`, \`Thumbnail.kt\`), keeping marquee exclusively in \`MiniPlayer\` and expanded \`Player\`. Added stable \`key\` and \`contentType\` across \`HomeScreen\`, \`PodcastHome\`, and \`ContinueListening\`. Moved floating capsule translations and rotations to draw-phase \`Modifier.graphicsLayer\`, guarded zero-radius \`BlurEffect\`, paused idle infinite animations, and enforced fixed image dimensions with \`CachePolicy.ENABLED\` in Coil.
+        - **Music Flow Video Surface Rendering (Media3 / ExoPlayer)**: Enabled animated canvas background by default in \`MusicFlowPreferences\`, removed \`downloadCache\` write contention on \`CanvasArtworkPlayer\` viaread-only cache sink, exposed \`onVideoReadyChanged\` to fade out static cover art (\`alpha = 0f\`) when video frames render, added \`YouTubeVideoCanvasProvider\` fallback + disk caching in \`AmbientCanvasBackground\`, cleared \`TextureView\` surface cleanly on dispose, and synchronized \`MusicFlowViewModel.enter()\` with the active \`nowPlaying\` track.
+        - **Native GitHub OTA Updater & In-App APK Installer**: Connected updater directly to \`https://api.github.com/repos/sepuro/Jet-Music/releases/latest\`, implemented strict numeric SemVer comparison (\`remote > local\`), bumped \`versionName\` to \`1.5.0\` (\`versionCode = 168\`), removed legacy external ad-redirect prompts, and implemented direct in-app APK download with progress reporting and native \`FileProvider\` package installation."
 
         if gh release view "$TAG" >/dev/null 2>&1; then
           gh release upload "$TAG" release-assets/*.apk --clobber

@@ -530,6 +530,9 @@ class MainActivity : ComponentActivity() {
     var availableUpdateDescription by remember {
       androidx.compose.runtime.mutableStateOf<String?>(null)
     }
+    var availableUpdateApkUrl by remember {
+      androidx.compose.runtime.mutableStateOf<String?>(null)
+    }
     var whatsNewInfo by remember {
       androidx.compose.runtime.mutableStateOf<echo.music.iad1tya.echomusic.updater.WhatsNewInfo?>(
         null
@@ -569,7 +572,7 @@ class MainActivity : ComponentActivity() {
         delay(2000L)
         checkForUpdate(
           context = context,
-          onSuccess = { latestVersion, isAvailable, changelog, _, _, description, _, _ ->
+          onSuccess = { latestVersion, isAvailable, changelog, _, _, description, _, apkUrl ->
             val currentVersion = BuildConfig.VERSION_NAME
             Log.d(
               "UpdateCheck",
@@ -581,6 +584,7 @@ class MainActivity : ComponentActivity() {
               availableUpdateVersion = latestVersion
               availableUpdateChangelog = changelog
               availableUpdateDescription = description
+              availableUpdateApkUrl = apkUrl
               showUpdateDialog = true
             }
 
@@ -706,6 +710,7 @@ class MainActivity : ComponentActivity() {
           version = availableUpdateVersion,
           changelog = availableUpdateChangelog,
           description = availableUpdateDescription,
+          apkUrl = availableUpdateApkUrl,
           onDismiss = { showUpdateDialog = false }
         )
       } else {
@@ -970,13 +975,6 @@ class MainActivity : ComponentActivity() {
               .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
               .add(WindowInsets(top = AppBarHeight, bottom = bottom))
           }
-        appBarScrollBehavior(
-          canScroll = {
-            !inSearchScreen &&
-              (playerBottomSheetState.isCollapsed || playerBottomSheetState.isDismissed)
-          }
-        )
-
         val topAppBarScrollBehavior =
           appBarScrollBehavior(
             canScroll = {
@@ -1297,7 +1295,7 @@ class MainActivity : ComponentActivity() {
                           Box(
                             modifier = Modifier
                               .fillMaxSize()
-                              .rotate(profileRingAngle)
+                              .graphicsLayer { rotationZ = profileRingAngle }
                               .border(
                                 width = 2.dp,
                                 brush = Brush.sweepGradient(
@@ -1407,20 +1405,6 @@ class MainActivity : ComponentActivity() {
                   val navSlideDistance =
                     bottomInset + FloatingToolbarBottomPadding + NavigationBarHeight
 
-                  val navOffsetY =
-                    if (navigationBarHeight == 0.dp) {
-                      navSlideDistance
-                    } else {
-                      val slideOffset =
-                        navSlideDistance * playerBottomSheetState.progress.coerceIn(0f, 1f)
-                      val hideOffset =
-                        navSlideDistance *
-                          (1 -
-                            navigationBarHeight.coerceAtMost(NavigationBarHeight) /
-                              NavigationBarHeight)
-                      slideOffset + hideOffset
-                    }
-
                   if (useFloatingNavBar) {
                     AppFloatingNavBar(
                       navigationItems = navigationItems,
@@ -1457,7 +1441,22 @@ class MainActivity : ComponentActivity() {
                       modifier =
                         Modifier.align(Alignment.BottomCenter)
                           .height(navSlideDistance)
-                          .offset(y = navOffsetY),
+                          .graphicsLayer {
+                            val slideDistancePx = navSlideDistance.toPx()
+                            val navBarHeightPx = navigationBarHeight.toPx()
+                            val maxNavBarHeightPx = NavigationBarHeight.toPx()
+                            translationY =
+                              if (navBarHeightPx == 0f) {
+                                slideDistancePx
+                              } else {
+                                val slideOffset =
+                                  slideDistancePx * playerBottomSheetState.progress.coerceIn(0f, 1f)
+                                val hideOffset =
+                                  slideDistancePx *
+                                    (1f - (navBarHeightPx.coerceAtMost(maxNavBarHeightPx) / maxNavBarHeightPx))
+                                slideOffset + hideOffset
+                              }
+                          },
                     ) {
                       FloatingNavigationToolbar(
                         items = navigationItems,

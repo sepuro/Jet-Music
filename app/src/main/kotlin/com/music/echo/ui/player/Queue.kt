@@ -19,7 +19,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -1471,7 +1470,7 @@ private fun PlayerQueueButton(
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().basicMarquee()
+        modifier = Modifier.fillMaxWidth()
       )
     } else {
       val baseTint =

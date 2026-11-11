@@ -143,22 +143,30 @@ fun Modifier.liquidGlass(
   if (!isGlassSupported()) return this
   val backdrop = LocalAppBackdrop.current
   val density = LocalDensity.current
-  val resolutionScale = glassResolutionScale(blurRadiusDp)
-  // Pixel-sized effect parameters operate on the downscaled backdrop layer, so
-  // they are pre-multiplied by the resolution scale to keep the same visual size.
-  val blurPx = with(density) { blurRadiusDp.dp.toPx() } * resolutionScale
-  val saturation = glassSaturation(config.vibrancy)
-  val lensHeightPx = with(density) { (config.lensHeight * LENS_MAX_DP).dp.toPx() } * resolutionScale
-  val lensAmountPx = with(density) { (config.lensAmount * LENS_MAX_DP).dp.toPx() } * resolutionScale
-  // Apple's glass is a light material on light content and dark on dark; honor an
-  // explicit user color, otherwise follow the theme.
+  val surfaceColor = MaterialTheme.colorScheme.surface
+  val (resolutionScale, blurPx, saturation) =
+    androidx.compose.runtime.remember(blurRadiusDp, config.vibrancy, density) {
+      val scale = glassResolutionScale(blurRadiusDp)
+      Triple(
+        scale,
+        with(density) { blurRadiusDp.dp.toPx() } * scale,
+        glassSaturation(config.vibrancy),
+      )
+    }
+  val (lensHeightPx, lensAmountPx) =
+    androidx.compose.runtime.remember(config.lensHeight, config.lensAmount, resolutionScale, density) {
+      (with(density) { (config.lensHeight * LENS_MAX_DP).dp.toPx() } * resolutionScale) to
+        (with(density) { (config.lensAmount * LENS_MAX_DP).dp.toPx() } * resolutionScale)
+    }
   val surfaceTintColor =
-    if (config.surfaceTintColor.isSpecified) {
-      config.surfaceTintColor
-    } else if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
-      Color(0xFFFAFAFA)
-    } else {
-      Color(0xFF121212)
+    androidx.compose.runtime.remember(config.surfaceTintColor, surfaceColor) {
+      if (config.surfaceTintColor.isSpecified) {
+        config.surfaceTintColor
+      } else if (surfaceColor.luminance() > 0.5f) {
+        Color(0xFFFAFAFA)
+      } else {
+        Color(0xFF121212)
+      }
     }
 
   return drawBackdrop(

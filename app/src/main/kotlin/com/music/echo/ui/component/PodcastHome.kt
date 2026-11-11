@@ -45,15 +45,15 @@ fun LazyListScope.podcastHome(
   navController: NavController,
 ) {
   if (followed.isNotEmpty()) {
-    item(key = "podcast_home_followed_title") {
+    item(key = "podcast_home_followed_title", contentType = "section_title") {
       NavigationTitle(title = stringResource(R.string.your_podcasts))
     }
-    item(key = "podcast_home_followed") {
+    item(key = "podcast_home_followed", contentType = "podcast_followed_row") {
       LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
       ) {
-        items(followed, key = { it.id }) { show ->
+        items(followed, key = { it.id }, contentType = { "podcast_show" }) { show ->
           val browseId = show.playlist.browseId ?: return@items
           Column(
             Modifier.width(120.dp).clickable { navController.navigate("online_playlist/$browseId") }
@@ -83,10 +83,14 @@ fun LazyListScope.podcastHome(
   continueListening(inProgress, keyPrefix = "podcast_home")
 
   if (newEpisodes.isNotEmpty()) {
-    item(key = "podcast_home_new_title") {
+    item(key = "podcast_home_new_title", contentType = "section_title") {
       NavigationTitle(title = stringResource(R.string.new_episodes))
     }
-    itemsIndexed(newEpisodes, key = { _, it -> "podcast_home_new_${it.id}" }) { index, episode ->
+    itemsIndexed(
+      items = newEpisodes,
+      key = { _, it -> "podcast_home_new_${it.id}" },
+      contentType = { _, _ -> "yt_list_item" }
+    ) { index, episode ->
       val playerConnection = LocalPlayerConnection.current
       val queueTitle = stringResource(R.string.new_episodes)
       YouTubeListItem(
