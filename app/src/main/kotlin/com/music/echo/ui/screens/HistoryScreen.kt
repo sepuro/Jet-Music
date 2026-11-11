@@ -408,10 +408,6 @@ fun HistoryScreen(
   }
 
   TopAppBar(
-    colors =
-      TopAppBarDefaults.topAppBarColors(
-        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-      ),
     title = {
       if (inSelectMode) {
         Text(pluralStringResource(R.plurals.n_selected, selection.size, selection.size))

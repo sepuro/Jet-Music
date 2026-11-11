@@ -344,8 +344,8 @@ fun LibrarySongsScreen(
           },
           colors =
             TopAppBarDefaults.topAppBarColors(
-              containerColor = Color.Transparent,
-              scrolledContainerColor = Color.Transparent
+              containerColor = androidx.compose.ui.graphics.Color.Transparent,
+              scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent
             ),
           windowInsets = WindowInsets(0.dp)
         )
