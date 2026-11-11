@@ -1,6 +1,7 @@
 package echo.music.iad1tya.ui.component
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
@@ -45,49 +46,55 @@ fun Material3SettingsGroup(
       Text(
         text = it.uppercase(),
         style =
-          MaterialTheme.typography.labelLarge.copy(
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+          MaterialTheme.typography.labelMedium.copy(
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            letterSpacing = androidx.compose.ui.unit.TextUnit(0.8f, androidx.compose.ui.unit.TextUnitType.Sp)
           ),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier =
           Modifier.padding(
-            bottom = if (compact) 4.dp else 8.dp,
+            bottom = if (compact) 6.dp else 10.dp,
             top = if (compact) 4.dp else 8.dp,
             start = 8.dp
           )
       )
     }
 
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
       items.forEachIndexed { index, item ->
         val shape =
           when {
-            items.size == 1 -> RoundedCornerShape(24.dp)
+            items.size == 1 -> RoundedCornerShape(20.dp)
             index == 0 ->
               RoundedCornerShape(
-                topStart = 24.dp,
-                topEnd = 24.dp,
-                bottomStart = 4.dp,
-                bottomEnd = 4.dp
+                topStart = 20.dp,
+                topEnd = 20.dp,
+                bottomStart = 6.dp,
+                bottomEnd = 6.dp
               )
             index == items.size - 1 ->
               RoundedCornerShape(
-                topStart = 4.dp,
-                topEnd = 4.dp,
-                bottomStart = 24.dp,
-                bottomEnd = 24.dp
+                topStart = 6.dp,
+                topEnd = 6.dp,
+                bottomStart = 20.dp,
+                bottomEnd = 20.dp
               )
-            else -> RoundedCornerShape(4.dp)
+            else -> RoundedCornerShape(6.dp)
           }
 
         Card(
           modifier = Modifier.fillMaxWidth().animateContentSize(),
           shape = shape,
+          border =
+            BorderStroke(
+              1.dp,
+              MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            ),
           colors =
             CardDefaults.cardColors(
               containerColor =
-                if (item.isHighlighted) MaterialTheme.colorScheme.surfaceVariant
-                else MaterialTheme.colorScheme.surfaceContainerHigh
+                if (item.isHighlighted) MaterialTheme.colorScheme.surfaceContainerHigh
+                else MaterialTheme.colorScheme.surfaceContainerLow
             ),
           elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {

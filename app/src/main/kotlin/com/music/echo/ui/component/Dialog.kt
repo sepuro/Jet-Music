@@ -66,9 +66,14 @@ fun DefaultDialog(
   ) {
     Surface(
       modifier = Modifier.padding(24.dp),
-      shape = AlertDialogDefaults.shape,
-      color = AlertDialogDefaults.containerColor,
-      tonalElevation = AlertDialogDefaults.TonalElevation
+      shape = RoundedCornerShape(24.dp),
+      color = MaterialTheme.colorScheme.surfaceContainerHigh,
+      tonalElevation = 0.dp,
+      border =
+        androidx.compose.foundation.BorderStroke(
+          1.dp,
+          MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        )
     ) {
       Column(horizontalAlignment = horizontalAlignment, modifier = modifier.padding(24.dp)) {
         if (icon != null) {

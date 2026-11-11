@@ -89,9 +89,10 @@ fun <E> ChipsRow(
         colors =
           FilterChipDefaults.filterChipColors(
             containerColor = containerColor,
-            selectedContainerColor = MaterialTheme.colorScheme.onSurface,
-            selectedLabelColor = MaterialTheme.colorScheme.surface,
-            selectedLeadingIconColor = MaterialTheme.colorScheme.surface
+            labelColor = MaterialTheme.colorScheme.onSurface,
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
           ),
         onClick = { onValueUpdate(value) },
         leadingIcon =
@@ -107,13 +108,21 @@ fun <E> ChipsRow(
             null
           },
         shape = RoundedCornerShape(cornerRadius),
-        border = null,
+        border =
+          FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = isSelected,
+            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+            selectedBorderColor = Color.Transparent,
+            borderWidth = 1.dp,
+            selectedBorderWidth = 0.dp
+          ),
         modifier =
           Modifier.animateContentSize(
             animationSpec =
               spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
               )
           )
       )

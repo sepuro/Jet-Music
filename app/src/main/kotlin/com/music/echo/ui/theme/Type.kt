@@ -126,66 +126,66 @@ fun getTypography(brandFont: FontFamily, plainFont: FontFamily = FontFamily.Defa
     displayLarge =
       TextStyle(
         fontFamily = brandFont,
-        fontWeight = FontWeight.Normal,
-        fontSize = 57.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 56.sp,
         lineHeight = 64.sp,
-        letterSpacing = (-0.25).sp
+        letterSpacing = (-0.5).sp
       ),
     displayMedium =
       TextStyle(
         fontFamily = brandFont,
-        fontWeight = FontWeight.Normal,
-        fontSize = 45.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 44.sp,
         lineHeight = 52.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (-0.35).sp
       ),
     displaySmall =
       TextStyle(
         fontFamily = brandFont,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 36.sp,
         lineHeight = 44.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (-0.25).sp
       ),
     headlineLarge =
       TextStyle(
         fontFamily = brandFont,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 32.sp,
         lineHeight = 40.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (-0.25).sp
       ),
     headlineMedium =
       TextStyle(
         fontFamily = brandFont,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 28.sp,
         lineHeight = 36.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (-0.2).sp
       ),
     headlineSmall =
       TextStyle(
         fontFamily = brandFont,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
         lineHeight = 32.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (-0.15).sp
       ),
     titleLarge =
       TextStyle(
         fontFamily = brandFont,
-        fontWeight = FontWeight.Normal,
-        fontSize = 22.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 21.sp,
         lineHeight = 28.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (-0.15).sp
       ),
     titleMedium =
       TextStyle(
         fontFamily = brandFont,
         fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.15.sp
+        lineHeight = 23.sp,
+        letterSpacing = 0.sp
       ),
     titleSmall =
       TextStyle(
@@ -193,7 +193,7 @@ fun getTypography(brandFont: FontFamily, plainFont: FontFamily = FontFamily.Defa
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
         lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
+        letterSpacing = 0.sp
       ),
     bodyLarge =
       TextStyle(
@@ -201,7 +201,7 @@ fun getTypography(brandFont: FontFamily, plainFont: FontFamily = FontFamily.Defa
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
+        letterSpacing = 0.15.sp
       ),
     bodyMedium =
       TextStyle(
@@ -209,15 +209,15 @@ fun getTypography(brandFont: FontFamily, plainFont: FontFamily = FontFamily.Defa
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp,
-        letterSpacing = 0.25.sp
+        letterSpacing = 0.1.sp
       ),
     bodySmall =
       TextStyle(
         fontFamily = plainFont,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.4.sp
+        lineHeight = 17.sp,
+        letterSpacing = 0.2.sp
       ),
     labelLarge =
       TextStyle(
@@ -225,7 +225,7 @@ fun getTypography(brandFont: FontFamily, plainFont: FontFamily = FontFamily.Defa
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
         lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
+        letterSpacing = 0.05.sp
       ),
     labelMedium =
       TextStyle(
@@ -233,7 +233,7 @@ fun getTypography(brandFont: FontFamily, plainFont: FontFamily = FontFamily.Defa
         fontWeight = FontWeight.Medium,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+        letterSpacing = 0.25.sp
       ),
     labelSmall =
       TextStyle(
@@ -241,7 +241,7 @@ fun getTypography(brandFont: FontFamily, plainFont: FontFamily = FontFamily.Defa
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+        letterSpacing = 0.3.sp
       )
   )
 
