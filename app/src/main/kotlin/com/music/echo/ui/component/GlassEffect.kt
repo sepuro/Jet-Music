@@ -148,59 +148,35 @@ fun Modifier.liquidGlass(
   val surfaceColor = MaterialTheme.colorScheme.surface
   val isLightSurface =
     androidx.compose.runtime.remember(surfaceColor) { surfaceColor.luminance() > 0.5f }
-  val surfaceTintColor =
-    androidx.compose.runtime.remember(config.surfaceTintColor, isLightSurface) {
+  val fillColor =
+    androidx.compose.runtime.remember(config.surfaceTintColor, isLightSurface, applyEdgeEffects, config.surfaceOpacity) {
       if (config.surfaceTintColor.isSpecified) {
-        config.surfaceTintColor
+        val alpha = if (applyEdgeEffects) 0.86f else config.surfaceOpacity.coerceIn(0.75f, 0.92f)
+        config.surfaceTintColor.copy(alpha = alpha)
       } else if (isLightSurface) {
-        Color(0xFFFAFAFA)
+        Color(0xFFF5F5F7).copy(alpha = 0.88f)
       } else {
-        Color(0xFF141418)
+        Color(0xFF141416).copy(alpha = 0.86f)
       }
     }
-  val effectiveAlpha =
-    if (applyEdgeEffects) 0.85f else config.surfaceOpacity.coerceIn(0.75f, 0.92f)
 
   return this.graphicsLayer { compositingStrategy = CompositingStrategy.ModulateAlpha }
     .clip(shape)
     .drawWithCache {
-      val fillColor = surfaceTintColor.copy(alpha = effectiveAlpha)
       val specularBrush =
-        Brush.linearGradient(
-          colors =
-            if (isLightSurface) {
-              listOf(
-                Color.White.copy(alpha = 0.65f),
-                Color.White.copy(alpha = 0.15f),
-                Color.Black.copy(alpha = 0.08f),
-              )
-            } else {
-              listOf(
-                Color.White.copy(alpha = 0.28f),
-                Color.White.copy(alpha = 0.06f),
-                Color.White.copy(alpha = 0.14f),
-              )
-            },
-          start = Offset.Zero,
-          end = Offset(size.width, size.height),
-        )
-      val sheenBrush =
-        Brush.linearGradient(
+        Brush.verticalGradient(
           colors =
             listOf(
-              Color.White.copy(alpha = if (isLightSurface) 0.18f else 0.07f),
-              Color.Transparent,
-            ),
-          start = Offset.Zero,
-          end = Offset(0f, size.height * 0.6f),
+              Color.White.copy(alpha = 0.18f),
+              Color.White.copy(alpha = 0.04f),
+            )
         )
       val outline = shape.createOutline(size, layoutDirection, this)
-      val strokeWidthPx = 1.dp.toPx()
+      val strokeWidthPx = 0.8.dp.toPx()
 
       onDrawBehind {
         drawRect(color = fillColor)
         if (applyEdgeEffects) {
-          drawRect(brush = sheenBrush)
           drawOutline(
             outline = outline,
             brush = specularBrush,

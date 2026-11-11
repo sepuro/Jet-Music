@@ -2199,14 +2199,9 @@ fun getAllSearchableSettings(): List<SearchableSetting> {
       "settings/appearance/app_icon"
     ),
 
-    // About Screen - Social & Support Links
+    // About Screen - Official Links
+    SearchableSetting("GitHub", "Visit the Jet Music GitHub repository", "About", "settings/about"),
     SearchableSetting("Website", "Visit the Jet Music website", "About", "settings/about"),
-    SearchableSetting("Instagram", "Follow Jet Music on Instagram", "About", "settings/about"),
-    SearchableSetting("X (Twitter)", "Follow Jet Music on X", "About", "settings/about"),
-    SearchableSetting("Buy Me a Coffee", "Support the developer", "About", "settings/about"),
-    SearchableSetting("Patreon", "Support the developer on Patreon", "About", "settings/about"),
-    SearchableSetting("UPI", "Support the developer via UPI", "About", "settings/about"),
-    SearchableSetting("Discord", "Join the Jet Music community", "About", "settings/about"),
   ) + listOf(
     SearchableSetting(
       "Show Button 1",

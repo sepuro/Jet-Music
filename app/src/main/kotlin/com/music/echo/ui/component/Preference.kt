@@ -327,10 +327,12 @@ fun PreferenceGroupTitle(
   modifier: Modifier = Modifier,
 ) {
   Text(
-    text = title.uppercase(),
+    text = title,
     style =
       MaterialTheme.typography.labelLarge.copy(
-        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+        letterSpacing =
+          androidx.compose.ui.unit.TextUnit(-0.5f, androidx.compose.ui.unit.TextUnitType.Sp)
       ),
     color = MaterialTheme.colorScheme.onSurfaceVariant,
     modifier = modifier.padding(bottom = 8.dp, top = 8.dp, start = 8.dp),

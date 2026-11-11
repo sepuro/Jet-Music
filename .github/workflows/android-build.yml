@@ -59,60 +59,46 @@ jobs:
 
     - name: Build Signed Release APK (R8 Full Mode)
       env:
+        KEYSTORE_FILE: keystore.jks
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD != '' && secrets.KEYSTORE_PASSWORD || (secrets.STORE_PASSWORD != '' && secrets.STORE_PASSWORD || 'android') }}
+        STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD != '' && secrets.KEYSTORE_PASSWORD || (secrets.STORE_PASSWORD != '' && secrets.STORE_PASSWORD || 'android') }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS != '' && secrets.KEY_ALIAS || 'androiddebugkey' }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD != '' && secrets.KEY_PASSWORD || 'android' }}
-        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD != '' && secrets.STORE_PASSWORD || 'android' }}
       run: |
         chmod +x gradlew
+        VERSION=$(grep 'versionName =' app/build.gradle.kts | head -1 | cut -d'"' -f2)
         ./gradlew assembleUniversalFossRelease
         mkdir -p release-assets
-        cp app/build/outputs/apk/universalFoss/release/*.apk release-assets/Jet-Music-v1.5.0-universal.apk
+        cp app/build/outputs/apk/universalFoss/release/*.apk "release-assets/Jet-Music-v${VERSION}-release.apk"
 
-    - name: Build Jet Music Debug APK
-      run: |
-        mkdir -p "$HOME/.android"
-        if [ ! -f "$HOME/.android/debug.keystore" ]; then
-          keytool -genkeypair \
-            -keystore "$HOME/.android/debug.keystore" \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -dname "CN=Android Debug,O=Android,C=US" \
-            -keyalg RSA \
-            -validity 10000
-        fi
-        chmod +x gradlew
-        ./gradlew assembleUniversalFossDebug
-        mkdir -p release-assets
-        cp app/build/outputs/apk/universalFoss/debug/*.apk release-assets/Jet-Music-v1.5.0-universal-debug.apk
-
-    - name: Upload Jet Music Universal APK Artifact
+    - name: Upload Jet Music Release APK Artifact
       uses: actions/upload-artifact@v7
       with:
-        name: Jet-Music-Universal-APK
+        name: Jet-Music-Release-APK
         path: |
-          app/build/outputs/apk/**/*.apk
           release-assets/*.apk
 
     - name: Publish GitHub Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        TAG="v1.5.0"
-        TITLE="Jet Music v1.5.0 — 120fps Scroll, Music Flow Video & Native OTA Updater"
-        NOTES="## Jet Music v1.5.0
+        VERSION=$(grep 'versionName =' app/build.gradle.kts | head -1 | cut -d'"' -f2)
+        TAG="v${VERSION}"
+        TITLE="Jet Music v${VERSION} — Apple Music UI Polish, OTA Popup & Full R8 Release"
+        NOTES="## Jet Music v${VERSION}
 
-        ### Runtime Architecture & Performance Fixes
-        - **120fps Scroll & Compose Jank Elimination**: Removed unbounded \`.basicMarquee()\` animations from list/grid items (\`Items.kt\`, \`NewMenuComponents.kt\`, \`YouTubeSongMenu.kt\`, \`MusicFlowPage.kt\`, \`Queue.kt\`, \`Thumbnail.kt\`), keeping marquee exclusively in \`MiniPlayer\` and expanded \`Player\`. Added stable \`key\` and \`contentType\` across \`HomeScreen\`, \`PodcastHome\`, and \`ContinueListening\`. Moved floating capsule translations and rotations to draw-phase \`Modifier.graphicsLayer\`, guarded zero-radius \`BlurEffect\`, paused idle infinite animations, and enforced fixed image dimensions with \`CachePolicy.ENABLED\` in Coil.
-        - **Music Flow Video Surface Rendering (Media3 / ExoPlayer)**: Enabled animated canvas background by default in \`MusicFlowPreferences\`, removed \`downloadCache\` write contention on \`CanvasArtworkPlayer\` viaread-only cache sink, exposed \`onVideoReadyChanged\` to fade out static cover art (\`alpha = 0f\`) when video frames render, added \`YouTubeVideoCanvasProvider\` fallback + disk caching in \`AmbientCanvasBackground\`, cleared \`TextureView\` surface cleanly on dispose, and synchronized \`MusicFlowViewModel.enter()\` with the active \`nowPlaying\` track.
-        - **Native GitHub OTA Updater & In-App APK Installer**: Connected updater directly to \`https://api.github.com/repos/sepuro/Jet-Music/releases/latest\`, implemented strict numeric SemVer comparison (\`remote > local\`), bumped \`versionName\` to \`1.5.0\` (\`versionCode = 168\`), removed legacy external ad-redirect prompts, and implemented direct in-app APK download with progress reporting and native \`FileProvider\` package installation."
+        ### Novedades y Optimizaciones de esta Versión
+        - **Refinamiento Visual Estilo Apple Music (120 FPS)**: Carátula reactiva con físicas de resorte (\`scale 1.0f / 0.85f\` y sombra dinámica \`24.dp / 8.dp\` en \`graphicsLayer\`), fondo atmosférico pre-cacheado con \`animateColorAsState\` + \`drawWithCache\`, acabado cristalino biselado Apple Glass (\`0.8.dp\` borde especular vertical) en \`MiniPlayer\` y \`BottomBar\`, y jerarquía tipográfica San Francisco Display (\`letterSpacing = (-0.5).sp\`) con resaltado de letras activas (\`scale = 1.03f\`, \`alpha = 1f\` vs \`0.35f\`).
+        - **Limpieza Total de Identidad (Jet Music)**: Eliminadas todas las tarjetas, enlaces, créditos y referencias residuales de autores anteriores en \`AboutScreen\`, \`WelcomeDialog\` y recursos multi-idioma (\`strings.xml\`), dejando únicamente los enlaces oficiales de **Jet Music**.
+        - **Sistema OTA con Aviso Emergente Instantáneo**: Verificación automática al iniciar y manual en Ajustes con comparador semántico estricto (\`major.minor.patch\`), diálogo emergente inmediato (*\"Nueva actualización disponible (v${VERSION})\"*) con notas de versión y botón **\"Actualizar ahora\"** con progreso real e instalación directa vía \`FileProvider\`.
+        - **Compilación 100% Release (R8 / ProGuard + Shrink Resources)**: Distribución exclusivamente en modo \`release\` firmado y optimizado con reglas \`@Keep\` reforzadas para \`InnerTube\`, \`NewPipe\`, \`Media3\`, \`Ktor\`, \`Retrofit\`, \`Gson\` y \`Kotlinx Serialization\`."
 
         if gh release view "$TAG" >/dev/null 2>&1; then
-          gh release upload "$TAG" release-assets/*.apk --clobber
+          gh release upload "$TAG" "release-assets/Jet-Music-v${VERSION}-release.apk" --clobber
           gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
         else
-          gh release create "$TAG" release-assets/*.apk \
+          gh release create "$TAG" "release-assets/Jet-Music-v${VERSION}-release.apk" \
             --title "$TITLE" \
             --notes "$NOTES" \
             --target "${{ github.sha }}"

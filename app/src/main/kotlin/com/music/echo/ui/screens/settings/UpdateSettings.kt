@@ -42,7 +42,9 @@ import androidx.navigation.NavController
 import echo.music.iad1tya.BuildConfig
 import echo.music.iad1tya.LocalPlayerAwareWindowInsets
 import echo.music.iad1tya.R
+import echo.music.iad1tya.echomusic.component.UpdateAvailableDialog
 import echo.music.iad1tya.echomusic.component.UpdateInfoDialog
+import echo.music.iad1tya.echomusic.updater.UpdateState
 import echo.music.iad1tya.echomusic.updater.autoClearOldApks
 import echo.music.iad1tya.echomusic.updater.downloadApkWithProgress
 import echo.music.iad1tya.echomusic.updater.extractApkAssetFromRelease
@@ -88,10 +90,13 @@ fun UpdateSettings(
   var apkCount by remember { mutableStateOf(getDownloadedApkCount(context)) }
   var showInfoDialog by remember { mutableStateOf(false) }
   var releaseNotes by remember { mutableStateOf<String?>(null) }
+  var updateState by remember { mutableStateOf<UpdateState>(UpdateState.Idle) }
+  var showUpdateDialog by remember { mutableStateOf(false) }
 
   fun checkGitHubRelease(showToastIfUpToDate: Boolean = false) {
     if (isChecking || isDownloading) return
     isChecking = true
+    updateState = UpdateState.Checking
     coroutineScope.launch {
       withContext(Dispatchers.IO) {
         try {
@@ -107,32 +112,50 @@ fun UpdateSettings(
           val json = connection.inputStream.bufferedReader().use { it.readText() }
           val targetRelease = JSONObject(json)
           val remoteTag = targetRelease.optString("tag_name", BuildConfig.VERSION_NAME)
+          val cleanRemoteVersion = remoteTag.trim().removePrefix("v").removePrefix("V")
           val body = targetRelease.optString("body", "")
           val (assetUrl, assetSize) = extractApkAssetFromRelease(targetRelease)
-          val newer = isNewerVersion(remoteTag, BuildConfig.VERSION_NAME) && assetUrl.isNotEmpty()
+          val newer =
+            isNewerVersion(cleanRemoteVersion, BuildConfig.VERSION_NAME) && assetUrl.isNotEmpty()
 
           saveUpdateAvailableState(context, newer)
 
           withContext(Dispatchers.Main) {
             releaseNotes = body.takeIf { it.isNotBlank() }
-            latestVersionTag = remoteTag
+            latestVersionTag = "v$cleanRemoteVersion"
             apkDownloadUrl = assetUrl.takeIf { it.isNotEmpty() }
             apkSizeMB = assetSize
             isUpdateAvailable = newer
             isChecking = false
-            if (!newer && showToastIfUpToDate) {
-              Toast.makeText(
-                  context,
-                  context.getString(R.string.on_latest_version),
-                  Toast.LENGTH_SHORT
+            if (newer) {
+              updateState =
+                UpdateState.Available(
+                  version = cleanRemoteVersion,
+                  changelog = body,
+                  apkDownloadUrl = assetUrl,
+                  sizeMB = assetSize
                 )
-                .show()
+              showUpdateDialog = true
+            } else {
+              updateState = UpdateState.UpToDate
+              if (showToastIfUpToDate) {
+                Toast.makeText(
+                    context,
+                    "Ya tienes instalada la última versión de Jet Music",
+                    Toast.LENGTH_SHORT
+                  )
+                  .show()
+              }
             }
           }
         } catch (e: Exception) {
           e.printStackTrace()
           withContext(Dispatchers.Main) {
             isChecking = false
+            updateState =
+              UpdateState.Error(
+                e.localizedMessage ?: context.getString(R.string.check_internet_connection)
+              )
             if (showToastIfUpToDate) {
               Toast.makeText(
                   context,
@@ -151,6 +174,17 @@ fun UpdateSettings(
     autoClearOldApks(context)
     apkCount = getDownloadedApkCount(context)
     checkGitHubRelease(showToastIfUpToDate = false)
+  }
+
+  if (showUpdateDialog && isUpdateAvailable) {
+    val parsed = remember(releaseNotes) { releaseNotes?.let { parseMarkdownToSections(it) } }
+    UpdateAvailableDialog(
+      version = latestVersionTag,
+      changelog = parsed?.second ?: emptyList(),
+      description = parsed?.first ?: releaseNotes,
+      apkUrl = apkDownloadUrl,
+      onDismiss = { showUpdateDialog = false }
+    )
   }
 
   if (showInfoDialog) {
@@ -234,25 +268,7 @@ fun UpdateSettings(
                   installApk(context, downloadedApkFile!!)
                 }
                 isUpdateAvailable && !apkDownloadUrl.isNullOrBlank() -> {
-                  isDownloading = true
-                  downloadProgress = 0f
-                  coroutineScope.launch {
-                    downloadApkWithProgress(
-                      context = context,
-                      apkUrl = apkDownloadUrl!!,
-                      version = latestVersionTag,
-                      onProgress = { progress -> downloadProgress = progress },
-                      onSuccess = { file ->
-                        isDownloading = false
-                        downloadedApkFile = file
-                        installApk(context, file)
-                      },
-                      onError = { errorMsg ->
-                        isDownloading = false
-                        Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
-                      }
-                    )
-                  }
+                  showUpdateDialog = true
                 }
                 else -> checkGitHubRelease(showToastIfUpToDate = true)
               }

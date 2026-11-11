@@ -598,68 +598,6 @@ class MainActivity : ComponentActivity() {
       }
     }
 
-    val HasShownBirthdayNotificationKey = remember {
-      androidx.datastore.preferences.core.booleanPreferencesKey("has_shown_birthday_notification")
-    }
-    LaunchedEffect(Unit) {
-      val today = java.time.LocalDate.now()
-      if (today.month == java.time.Month.OCTOBER && today.dayOfMonth == 14) {
-        val prefs = context.dataStore.data.first()
-        val hasShown = prefs[HasShownBirthdayNotificationKey] ?: false
-        if (!hasShown) {
-          if (
-            android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU ||
-              androidx.core.content.ContextCompat.checkSelfPermission(
-                context,
-                android.Manifest.permission.POST_NOTIFICATIONS
-              ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-          ) {
-
-            val channelId = "birthday_channel"
-            val notificationManager =
-              context.getSystemService(android.app.NotificationManager::class.java)
-
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-              val channel =
-                android.app.NotificationChannel(
-                  channelId,
-                  "Birthday",
-                  android.app.NotificationManager.IMPORTANCE_HIGH
-                )
-              notificationManager.createNotificationChannel(channel)
-            }
-
-            val bitmap =
-              android.graphics.BitmapFactory.decodeResource(
-                context.resources,
-                R.drawable.birthday_image
-              )
-
-            val notification =
-              androidx.core.app.NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(R.drawable.echomusicnotification) // Use correct transparent echo icon
-                .setContentTitle("Happy Birthday Aditya!")
-                .setContentText("Today is the developer's birthday!")
-                .setLargeIcon(bitmap)
-                .setStyle(
-                  androidx.core.app.NotificationCompat.BigPictureStyle()
-                    .bigPicture(bitmap)
-                    .bigLargeIcon(null as android.graphics.Bitmap?)
-                )
-                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
-                .build()
-
-            notificationManager.notify(1014, notification)
-
-            context.dataStore.edit { preferences ->
-              preferences[HasShownBirthdayNotificationKey] = true
-            }
-          }
-        }
-      }
-    }
-
     LaunchedEffect(enableHighRefreshRate) {
       val window = this@MainActivity.window
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -1243,7 +1181,8 @@ class MainActivity : ComponentActivity() {
                         style =
                           MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp
+                            fontSize = 24.sp,
+                            letterSpacing = (-0.5).sp
                           ),
                       )
                     },

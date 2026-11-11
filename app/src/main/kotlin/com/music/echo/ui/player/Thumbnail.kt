@@ -2,9 +2,12 @@ package echo.music.iad1tya.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -560,6 +563,27 @@ private fun ThumbnailItem(
   val isPlaying by playerConnection.isPlaying.collectAsState()
   val isCurrentItem = item.mediaId == currentMediaId
 
+  val coverScale by
+    animateFloatAsState(
+      targetValue = if (!isCurrentItem || isPlaying) 1.0f else 0.85f,
+      animationSpec =
+        spring(
+          dampingRatio = Spring.DampingRatioLowBouncy,
+          stiffness = Spring.StiffnessLow
+        ),
+      label = "AppleMusicCoverScale"
+    )
+  val coverElevationDp by
+    animateFloatAsState(
+      targetValue = if (!isCurrentItem || isPlaying) 24f else 8f,
+      animationSpec =
+        spring(
+          dampingRatio = Spring.DampingRatioLowBouncy,
+          stiffness = Spring.StiffnessLow
+        ),
+      label = "AppleMusicCoverElevation"
+    )
+
   val infiniteTransition = rememberInfiniteTransition(label = "ThumbnailRotation")
   val rotation by
     infiniteTransition.animateFloat(
@@ -642,17 +666,23 @@ private fun ThumbnailItem(
         },
     contentAlignment = Alignment.Center
   ) {
+    val coverShape =
+      if (rotatingThumbnail) {
+        MaterialShapes.Clover8Leaf.toShape()
+      } else {
+        RoundedCornerShape(dimensions.cornerRadius)
+      }
     Box(
       modifier =
         Modifier.size(dimensions.thumbnailSize)
-          .graphicsLayer { rotationZ = rotation }
-          .clip(
-            if (rotatingThumbnail) {
-              MaterialShapes.Clover8Leaf.toShape()
-            } else {
-              RoundedCornerShape(dimensions.cornerRadius)
-            }
-          )
+          .graphicsLayer {
+            scaleX = coverScale
+            scaleY = coverScale
+            shadowElevation = coverElevationDp.dp.toPx()
+            shape = coverShape
+            clip = true
+            rotationZ = rotation
+          }
           .graphicsLayer { rotationZ = -rotation }
     ) {
       if (hidePlayerThumbnail) {

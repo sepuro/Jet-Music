@@ -6,6 +6,7 @@ package echo.music.iad1tya.ui.component
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -54,12 +55,14 @@ fun AppFloatingNavBar(
 
   val glassConfig = LocalGlassEffectConfig.current
   val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR)
+  val isLightSurface = MaterialTheme.colorScheme.surface.luminance() > 0.5f
 
   val backgroundColor =
     when {
       useGlass -> Color.Transparent
       pureBlack -> Color.Black
-      else -> MaterialTheme.colorScheme.surfaceContainerHigh
+      isLightSurface -> Color(0xFFF5F5F7).copy(alpha = 0.88f)
+      else -> Color(0xFF141416).copy(alpha = 0.86f)
     }
 
   val adaptiveTextColor =
@@ -85,6 +88,13 @@ fun AppFloatingNavBar(
       else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+  val specularBorderBrush =
+    remember {
+      androidx.compose.ui.graphics.Brush.verticalGradient(
+        listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.04f))
+      )
+    }
+
   val tabBarContentModifier =
     if (useGlass) {
       Modifier.liquidGlass(
@@ -92,7 +102,11 @@ fun AppFloatingNavBar(
         shape = RoundedCornerShape(percent = 50),
       )
     } else {
-      Modifier
+      Modifier.border(
+        androidx.compose.ui.unit.Dp(0.8f),
+        specularBorderBrush,
+        RoundedCornerShape(percent = 50),
+      )
     }
 
   val selectedTabKey =

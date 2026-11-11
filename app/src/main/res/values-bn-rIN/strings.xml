@@ -595,7 +595,7 @@
     <string name="display_density_desc">ডিসপ্লে ঘনত্ব সেটিংস পরিচালনা করুন</string>
     <string name="download_quality_title_desc">ডাউনলোড কোয়ালিটি সেটিংস পরিচালনা করুন</string>
     <string name="downloaded_songs_desc">ডাউনলোড করা গান সেটিংস পরিচালনা করুন</string>
-    <string name="echomusic_1_desc">Vivi Music (ফ্লুইড) সেটিংস পরিচালনা করুন</string>
+    <string name="echomusic_1_desc">Jet Music (ফ্লুইড) সেটিংস পরিচালনা করুন</string>
     <string name="enable_desc">চালু বা বন্ধ করুন</string>
     <string name="enable_authentication_desc">অথেনটিকেশন চালু বা বন্ধ করুন</string>
     <string name="enable_dynamic_theme_desc">ডায়নামিক থিম চালু বা বন্ধ করুন</string>

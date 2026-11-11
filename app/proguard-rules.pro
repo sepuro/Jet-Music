@@ -192,6 +192,7 @@
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
+-keep class com.music.innertube.** { *; }
 -keep class com.music.innertube.models.** { *; }
 -keep class com.music.innertube.pages.** { *; }
 -keep class echo.music.iad1tya.db.entities.** { *; }
@@ -201,6 +202,13 @@
 -keep class com.music.kugou.** { *; }
 -keep class com.music.betterlyrics.** { *; }
 -keep class com.music.simpmusic.** { *; }
+-keep class org.schabi.newpipe.** { *; }
+-dontwarn org.schabi.newpipe.**
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+-keep class com.google.gson.** { *; }
+-dontwarn com.google.gson.**
+-keep class retrofit2.** { *; }
 -dontwarn retrofit2.**
 -keepclasseswithmembers class * {
     @retrofit2.http.* <methods>;

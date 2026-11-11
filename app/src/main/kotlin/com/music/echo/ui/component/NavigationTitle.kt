@@ -28,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import echo.music.iad1tya.R
 
 @Composable
@@ -61,10 +62,10 @@ fun NavigationTitle(
       }
 
       Text(
-        text = title.uppercase(),
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        text = title,
+        style = MaterialTheme.typography.titleMedium.copy(letterSpacing = (-0.5).sp),
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface,
         overflow = TextOverflow.Ellipsis,
         maxLines = 1,
       )

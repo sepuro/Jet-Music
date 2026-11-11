@@ -102,8 +102,6 @@ fun echomusicLyricsLine(
     when {
       !isSynced || (isSelectionModeActive && isSelected) -> 1f
       isActive -> 1f
-      distanceFromCurrent == 1 -> 0.65f
-      distanceFromCurrent == 2 -> 0.45f
       else -> 0.35f
     }
 
@@ -116,8 +114,8 @@ fun echomusicLyricsLine(
 
   val scale by
     animateFloatAsState(
-      targetValue = if (isActive) 1f else 0.85f,
-      animationSpec = tween(durationMillis = 400),
+      targetValue = if (isActive) 1.03f else 1.0f,
+      animationSpec = tween(durationMillis = 350),
       label = "lineScale"
     )
 

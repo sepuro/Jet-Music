@@ -1200,7 +1200,7 @@ fun Lyrics(
                   when {
                     !isSynced || (isSelectionModeActive && isSelected) -> 1f
                     isActiveByIndex || isActiveByTime -> 1f
-                    else -> 0.5f
+                    else -> 0.35f
                   },
                 animationSpec =
                   spring(
@@ -1210,7 +1210,7 @@ fun Lyrics(
               )
             val scale by
               animateFloatAsState(
-                targetValue = if (isActiveByIndex || isActiveByTime) 1.05f else 1f,
+                targetValue = if (isActiveByIndex || isActiveByTime) 1.03f else 1f,
                 animationSpec =
                   spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,

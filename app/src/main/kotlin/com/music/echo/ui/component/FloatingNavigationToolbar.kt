@@ -107,37 +107,49 @@ fun FloatingNavigationToolbar(
   isSelected: (Screens) -> Boolean,
   onItemClick: (Screens, Boolean) -> Unit,
 ) {
+  val isLightSurface =
+    remember(MaterialTheme.colorScheme.surface) {
+      val s = MaterialTheme.colorScheme.surface
+      (0.299f * s.red + 0.587f * s.green + 0.114f * s.blue) > 0.5f
+    }
   val toolbarContainerColor =
-    if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+    if (pureBlack) Color.Black
+    else if (isLightSurface) Color(0xFFF5F5F7).copy(alpha = 0.88f)
+    else Color(0xFF141416).copy(alpha = 0.86f)
   val toolbarColors =
     FloatingToolbarDefaults.standardFloatingToolbarColors(
       toolbarContainerColor = androidx.compose.ui.graphics.Color.Transparent,
     )
 
-  val outlineColor = androidx.compose.material3.MaterialTheme.colorScheme.outline
+  val specularBorderBrush =
+    remember {
+      androidx.compose.ui.graphics.Brush.verticalGradient(
+        listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.04f))
+      )
+    }
   val glassConfig = LocalGlassEffectConfig.current
   val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR)
 
   val toolbarModifier =
     if (useGlass) {
-        androidx.compose.ui.Modifier.clip(
-            androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
-          )
-          .liquidGlass(
-            config = glassConfig,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
-          )
-      } else {
-        androidx.compose.ui.Modifier.clip(
-            androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
-          )
-          .background(toolbarContainerColor)
-      }
-      .border(
-        1.dp,
-        outlineColor.copy(alpha = 0.3f),
-        androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
-      )
+      androidx.compose.ui.Modifier.clip(
+          androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
+        )
+        .liquidGlass(
+          config = glassConfig,
+          shape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
+        )
+    } else {
+      androidx.compose.ui.Modifier.clip(
+          androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
+        )
+        .background(toolbarContainerColor)
+        .border(
+          0.8.dp,
+          specularBorderBrush,
+          androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
+        )
+    }
 
   val hasOverflowMenu =
     onMusicFlowClick != null || (onShuffleClick != null && shuffleIconRes != null) || onMusicRecognitionClick != null || onWrappedClick != null

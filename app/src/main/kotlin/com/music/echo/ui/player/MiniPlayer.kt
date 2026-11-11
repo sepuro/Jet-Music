@@ -230,9 +230,18 @@ fun MiniPlayer(
       if (useGlass && glassConfig.textColor != androidx.compose.ui.graphics.Color.Unspecified)
         glassConfig.textColor
       else if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface
+    val appleGlassBg =
+      if (useDarkTheme) Color(0xFF141416).copy(alpha = 0.86f)
+      else Color(0xFFF5F5F7).copy(alpha = 0.88f)
+    val specularBorderBrush =
+      remember {
+        Brush.verticalGradient(
+          listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.04f))
+        )
+      }
     val bgTint =
       if (useGlass) Color.Transparent
-      else if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+      else if (pureBlack) Color.Black else appleGlassBg
 
     val tabBarContentModifier =
       if (useGlass) {
@@ -241,7 +250,9 @@ fun MiniPlayer(
           shape = RoundedCornerShape(percent = 50),
         )
       } else {
-        Modifier.clip(RoundedCornerShape(percent = 50)).background(bgTint)
+        Modifier.clip(RoundedCornerShape(percent = 50))
+          .background(bgTint)
+          .border(0.8.dp, specularBorderBrush, RoundedCornerShape(percent = 50))
       }
 
     Box(
@@ -474,12 +485,22 @@ private fun NewMiniPlayer(progressState: ProgressState, modifier: Modifier = Mod
           .graphicsLayer { translationX = offsetXAnimatable.value }
           .let { m ->
             val shape = RoundedCornerShape(percent = 50)
+            val isLightBg = MaterialTheme.colorScheme.surface.let {
+              (0.299f * it.red + 0.587f * it.green + 0.114f * it.blue) > 0.5f
+            }
+            val appleGlassFill =
+              if (pureBlack) Color.Black
+              else if (isLightBg) Color(0xFFF5F5F7).copy(alpha = 0.88f)
+              else Color(0xFF141416).copy(alpha = 0.86f)
+            val specularBrush =
+              Brush.verticalGradient(
+                listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.04f))
+              )
             if (useGlass) {
-                m.clip(shape).liquidGlass(config = glassConfig, shape = shape)
-              } else {
-                m.clip(shape).background(bgTint)
-              }
-              .border(1.dp, outlineColor.copy(alpha = 0.3f), shape)
+              m.clip(shape).liquidGlass(config = glassConfig, shape = shape)
+            } else {
+              m.clip(shape).background(appleGlassFill).border(0.8.dp, specularBrush, shape)
+            }
           }
     ) {
       MiniPlayerBackgroundLayer(
@@ -1141,10 +1162,33 @@ private fun MiniPlayerBackgroundLayer(
     }
     PlayerBackgroundStyle.GRADIENT -> {
       if (gradientColors.isNotEmpty()) {
+        val rawColor0 =
+          gradientColors.getOrElse(0) { MaterialTheme.colorScheme.surfaceContainerHigh }
+        val rawColor1 = gradientColors.getOrElse(1) { rawColor0.copy(alpha = 0.7f) }
+        val animatedColor0 by
+          androidx.compose.animation.animateColorAsState(
+            targetValue = rawColor0,
+            animationSpec =
+              tween(
+                durationMillis = 1000,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing
+              ),
+            label = "miniGradientColor0"
+          )
+        val animatedColor1 by
+          androidx.compose.animation.animateColorAsState(
+            targetValue = rawColor1,
+            animationSpec =
+              tween(
+                durationMillis = 1000,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing
+              ),
+            label = "miniGradientColor1"
+          )
         Box(
           modifier =
             Modifier.fillMaxSize().drawWithCache {
-              val brush = Brush.verticalGradient(gradientColors)
+              val brush = Brush.verticalGradient(listOf(animatedColor0, animatedColor1))
               val overlayColor = Color.Black.copy(alpha = 0.2f)
               onDrawBehind {
                 drawRect(brush)

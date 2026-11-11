@@ -44,11 +44,12 @@ fun Material3SettingsGroup(
   Column(modifier = Modifier.fillMaxWidth()) {
     title?.let {
       Text(
-        text = it.uppercase(),
+        text = it,
         style =
-          MaterialTheme.typography.labelMedium.copy(
-            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-            letterSpacing = androidx.compose.ui.unit.TextUnit(0.8f, androidx.compose.ui.unit.TextUnitType.Sp)
+          MaterialTheme.typography.titleSmall.copy(
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            letterSpacing =
+              androidx.compose.ui.unit.TextUnit(-0.5f, androidx.compose.ui.unit.TextUnitType.Sp)
           ),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier =

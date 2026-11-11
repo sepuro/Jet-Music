@@ -677,7 +677,7 @@
     <string name="display_density_desc">Gestiona la densidad de elementos en pantalla</string>
     <string name="download_quality_title_desc">Gestiona la calidad de las descargas</string>
     <string name="downloaded_songs_desc">Gestiona las canciones descargadas</string>
-    <string name="echomusic_1_desc">Gestiona el estilo de animación Vivi Music (Fluido)</string>
+    <string name="echomusic_1_desc">Gestiona el estilo de animación Jet Music (Fluido)</string>
     <string name="enable_desc">Activa o desactiva la opción</string>
     <string name="enable_authentication_desc">Activa o desactiva la autenticación del proxy</string>
     <string name="enable_dynamic_theme_desc">Activa o desactiva el tema dinámico</string>

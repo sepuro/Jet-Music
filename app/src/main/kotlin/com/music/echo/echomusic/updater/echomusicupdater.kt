@@ -103,6 +103,23 @@ import org.json.JSONObject
 
 data class ChangelogSection(val title: String, val items: List<String>)
 
+sealed class UpdateState {
+  object Idle : UpdateState()
+
+  object Checking : UpdateState()
+
+  data class Available(
+    val version: String,
+    val changelog: String,
+    val apkDownloadUrl: String,
+    val sizeMB: String = "",
+  ) : UpdateState()
+
+  object UpToDate : UpdateState()
+
+  data class Error(val message: String) : UpdateState()
+}
+
 sealed class EchoUpdateStatus {
   object Idle : EchoUpdateStatus()
 
@@ -186,10 +203,12 @@ fun UpdateScreen(navController: NavHostController) {
     }
   }
 
-  fun triggerUpdateCheck() {
+  var showUpdatePopup by remember { mutableStateOf(false) }
+
+  fun triggerUpdateCheck(manual: Boolean = false) {
     status = EchoUpdateStatus.Checking
     scope.launch {
-      delay(1000L)
+      delay(400L)
       checkForUpdate(
         context = context,
         onSuccess = { tag, isAvailable, changelog, size, date, description, imageUrl, apkUrl ->
@@ -200,6 +219,7 @@ fun UpdateScreen(navController: NavHostController) {
           saveUpdateAvailableState(context, isAvailable)
           status =
             if (isAvailable) {
+              showUpdatePopup = true
               EchoUpdateStatus.Available(
                 version = tag,
                 changelog = changelog,
@@ -210,6 +230,11 @@ fun UpdateScreen(navController: NavHostController) {
                 apkUrl = apkUrl
               )
             } else {
+              if (manual) {
+                scope.launch {
+                  snackbarHostState.showSnackbar("Ya tienes instalada la última versión de Jet Music")
+                }
+              }
               EchoUpdateStatus.NoUpdate(tag)
             }
         },
@@ -221,9 +246,18 @@ fun UpdateScreen(navController: NavHostController) {
   }
 
   LaunchedEffect(Unit) {
-    if (autoUpdateCheckEnabled) {
-      triggerUpdateCheck()
-    }
+    triggerUpdateCheck(manual = false)
+  }
+
+  val availableStatus = status as? EchoUpdateStatus.Available
+  if (showUpdatePopup && availableStatus != null) {
+    echo.music.iad1tya.echomusic.component.UpdateAvailableDialog(
+      version = availableStatus.version,
+      changelog = availableStatus.changelog,
+      description = availableStatus.description,
+      apkUrl = availableStatus.apkUrl,
+      onDismiss = { showUpdatePopup = false }
+    )
   }
 
   val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -283,7 +317,7 @@ fun UpdateScreen(navController: NavHostController) {
             is EchoUpdateStatus.Error -> {
               AnimatedActionButton(
                 text = stringResource(R.string.check_for_update),
-                onClick = { triggerUpdateCheck() },
+                onClick = { triggerUpdateCheck(manual = true) },
                 enabled = currentStatus !is EchoUpdateStatus.Checking && !isDownloading,
                 modifier = Modifier.fillMaxWidth()
               )
@@ -341,7 +375,7 @@ fun UpdateScreen(navController: NavHostController) {
                     } else {
                       val urlToDownload =
                         currentStatus.apkUrl
-                          ?: "https://github.com/sepuro/Jet-Music/releases/download/${currentStatus.version}/Jet-Music-${currentStatus.version}-universal.apk"
+                          ?: "https://github.com/sepuro/Jet-Music/releases/download/${currentStatus.version}/Jet-Music-${currentStatus.version}-release.apk"
 
                       val constraints =
                         Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()

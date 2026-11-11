@@ -1114,37 +1114,60 @@ fun BottomSheetPlayer(
             }
           }
           PlayerBackgroundStyle.GRADIENT -> {
-            AnimatedContent(
-              targetState = gradientColors,
-              transitionSpec = { fadeIn(tween(800)).togetherWith(fadeOut(tween(800))) },
-              label = "gradientBackground"
-            ) { colors ->
-              if (colors.isNotEmpty()) {
-                val gradientColorStops =
-                  remember(colors) {
-                    if (colors.size >= 3) {
-                      arrayOf(0.0f to colors[0], 0.5f to colors[1], 1.0f to colors[2])
-                    } else {
-                      arrayOf(
-                        0.0f to colors[0],
-                        0.6f to colors[0].copy(alpha = 0.7f),
-                        1.0f to Color.Black
+            val rawColor0 = gradientColors.getOrElse(0) { MaterialTheme.colorScheme.surface }
+            val rawColor1 = gradientColors.getOrElse(1) { rawColor0.copy(alpha = 0.7f) }
+            val rawColor2 = gradientColors.getOrElse(2) { Color.Black }
+            val animatedColor0 by
+              animateColorAsState(
+                targetValue = rawColor0,
+                animationSpec =
+                  tween(
+                    durationMillis = 1000,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                  ),
+                label = "playerGradientColor0"
+              )
+            val animatedColor1 by
+              animateColorAsState(
+                targetValue = rawColor1,
+                animationSpec =
+                  tween(
+                    durationMillis = 1000,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                  ),
+                label = "playerGradientColor1"
+              )
+            val animatedColor2 by
+              animateColorAsState(
+                targetValue = rawColor2,
+                animationSpec =
+                  tween(
+                    durationMillis = 1000,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                  ),
+                label = "playerGradientColor2"
+              )
+            if (gradientColors.isNotEmpty()) {
+              Box(
+                Modifier.fillMaxSize()
+                  .graphicsLayer { alpha = backgroundAlphaProvider() }
+                  .drawWithCache {
+                    val gradientBrush =
+                      Brush.verticalGradient(
+                        colorStops =
+                          arrayOf(
+                            0.0f to animatedColor0,
+                            0.55f to animatedColor1,
+                            1.0f to animatedColor2
+                          )
                       )
+                    val overlayColor = Color.Black.copy(alpha = 0.2f)
+                    onDrawBehind {
+                      drawRect(gradientBrush)
+                      drawRect(overlayColor)
                     }
                   }
-                Box(
-                  Modifier.fillMaxSize()
-                    .graphicsLayer { alpha = backgroundAlphaProvider() }
-                    .drawWithCache {
-                      val gradientBrush = Brush.verticalGradient(colorStops = gradientColorStops)
-                      val overlayColor = Color.Black.copy(alpha = 0.2f)
-                      onDrawBehind {
-                        drawRect(gradientBrush)
-                        drawRect(overlayColor)
-                      }
-                    }
-                )
-              }
+              )
             }
           }
           PlayerBackgroundStyle.GLOW_ANIMATED -> {

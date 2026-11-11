@@ -33,8 +33,8 @@ android {
     applicationId = "echo.music.iad1tya"
     minSdk = 26
     targetSdk = 36
-    versionCode = 168
-    versionName = "1.5.0"
+    versionCode = 169
+    versionName = "1.6.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     vectorDrawables.useSupportLibrary = true
@@ -129,16 +129,40 @@ android {
       keyPassword = "android"
     }
     create("release") {
-      val keystoreFile = rootProject.file("keystore.jks")
-      if (keystoreFile.exists()) {
-        storeFile = keystoreFile
-      } else {
-        val localKeystore = file("keystore/release.keystore")
-        if (localKeystore.exists()) storeFile = localKeystore
+      val envKeystorePath =
+        project.findProperty("KEYSTORE_FILE")?.toString()
+          ?: localProperties.getProperty("KEYSTORE_FILE")
+          ?: System.getenv("KEYSTORE_FILE")
+      val resolvedKeystore =
+        when {
+          !envKeystorePath.isNullOrBlank() && rootProject.file(envKeystorePath).exists() ->
+            rootProject.file(envKeystorePath)
+          !envKeystorePath.isNullOrBlank() && file(envKeystorePath).exists() ->
+            file(envKeystorePath)
+          rootProject.file("keystore.jks").exists() -> rootProject.file("keystore.jks")
+          file("keystore/release.keystore").exists() -> file("keystore/release.keystore")
+          file("persistent-debug.keystore").exists() -> file("persistent-debug.keystore")
+          else -> null
+        }
+      if (resolvedKeystore != null) {
+        storeFile = resolvedKeystore
       }
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = System.getenv("KEY_ALIAS")
-      keyPassword = System.getenv("KEY_PASSWORD")
+      storePassword =
+        project.findProperty("KEYSTORE_PASSWORD")?.toString()
+          ?: localProperties.getProperty("KEYSTORE_PASSWORD")
+          ?: System.getenv("KEYSTORE_PASSWORD")
+          ?: System.getenv("STORE_PASSWORD")
+          ?: "android"
+      keyAlias =
+        project.findProperty("KEY_ALIAS")?.toString()
+          ?: localProperties.getProperty("KEY_ALIAS")
+          ?: System.getenv("KEY_ALIAS")
+          ?: "androiddebugkey"
+      keyPassword =
+        project.findProperty("KEY_PASSWORD")?.toString()
+          ?: localProperties.getProperty("KEY_PASSWORD")
+          ?: System.getenv("KEY_PASSWORD")
+          ?: "android"
     }
     getByName("debug") {
       keyAlias = "androiddebugkey"

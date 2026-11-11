@@ -678,7 +678,7 @@
     <string name="display_density_desc">Gérer les paramètres de densité d\'affichage</string>
     <string name="download_quality_title_desc">Gérer les paramètres de qualité de téléchargement</string>
     <string name="downloaded_songs_desc">Gérer les paramètres des titres téléchargés</string>
-    <string name="echomusic_1_desc">Gérer les paramètres de Vivi Music (Fluide)</string>
+    <string name="echomusic_1_desc">Gérer les paramètres de Jet Music (Fluide)</string>
     <string name="enable_desc">Activer ou désactiver</string>
     <string name="enable_authentication_desc">Activer ou désactiver l\'authentification</string>
     <string name="enable_dynamic_theme_desc">Activer ou désactiver le thème dynamique</string>

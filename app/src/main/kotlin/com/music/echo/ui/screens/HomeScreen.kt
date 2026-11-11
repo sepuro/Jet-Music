@@ -1,6 +1,9 @@
 package echo.music.iad1tya.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -72,6 +75,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -521,8 +525,8 @@ fun DailyDiscoverCard(
         Box(
           modifier =
             Modifier.fillMaxSize()
-              .background(
-                brush =
+              .drawWithCache {
+                val gradientBrush =
                   Brush.verticalGradient(
                     colors =
                       listOf(
@@ -532,7 +536,8 @@ fun DailyDiscoverCard(
                         Color.Black.copy(alpha = 0.9f)
                       )
                   )
-              )
+                onDrawBehind { drawRect(gradientBrush) }
+              }
         )
 
         Column(
@@ -950,6 +955,18 @@ fun HomeScreen(
 
   LaunchedEffect(forgottenFavorites) { forgottenFavoritesLazyGridState.scrollToItem(0) }
 
+  val ambientArtworkColor by
+    animateColorAsState(
+      targetValue =
+        if (mediaMetadata != null) {
+          MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        } else {
+          Color.Transparent
+        },
+      animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+      label = "homeAmbientColor"
+    )
+
   PullToRefreshBox(
     state = pullRefreshState,
     isRefreshing = isRefreshing,
@@ -964,7 +981,19 @@ fun HomeScreen(
       )
     }
   ) {
-    BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopStart) {
+    BoxWithConstraints(
+      modifier =
+        Modifier.fillMaxSize().drawWithCache {
+          val ambientBrush =
+            Brush.verticalGradient(
+              colors = listOf(ambientArtworkColor, Color.Transparent),
+              startY = 0f,
+              endY = size.height * 0.45f
+            )
+          onDrawBehind { drawRect(ambientBrush) }
+        },
+      contentAlignment = Alignment.TopStart
+    ) {
       val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f
       val horizontalLazyGridItemWidth = maxWidth * horizontalLazyGridItemWidthFactor
       val quickPicksSnapLayoutInfoProvider =

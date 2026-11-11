@@ -112,8 +112,10 @@ fun UpdateAvailableDialog(
               }
             }
 
+            val cleanVersion =
+              remember(version) { version.trim().removePrefix("v").removePrefix("V") }
             Text(
-              text = "Version $version is available",
+              text = "Nueva actualización disponible (v$cleanVersion)",
               style = MaterialTheme.typography.titleLarge,
               fontWeight = FontWeight.Bold,
             )
@@ -293,7 +295,7 @@ fun UpdateAvailableDialog(
                 when {
                   isDownloading -> "${(downloadProgress * 100).toInt()}%"
                   downloadedFile?.exists() == true -> stringResource(R.string.install)
-                  else -> stringResource(R.string.update_available)
+                  else -> "Actualizar ahora"
                 }
             )
           }
