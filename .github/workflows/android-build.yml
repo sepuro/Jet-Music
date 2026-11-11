@@ -17,6 +17,7 @@ on:
       - "site.webmanifest"
       - "assets/**"
       - ".github/workflows/pages.yml"
+      - "vercel.json"
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
