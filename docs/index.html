@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
   <title>Jet Music — Sonido puro. Diseño minimalista a 120Hz.</title>
 
   <!-- SEO & Brand Metadata -->
@@ -60,8 +60,15 @@
 
     *, *::before, *::after {
       box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
       margin: 0;
       padding: 0;
+      -webkit-text-size-adjust: 100%;
     }
 
     html {
@@ -78,8 +85,12 @@
       color: var(--text-primary);
       font-family: var(--font-sans);
       line-height: 1.5;
-      overflow-x: hidden;
-      selection-background-color: rgba(245, 245, 247, 0.2);
+    }
+
+    img, svg, video, canvas {
+      max-width: 100%;
+      height: auto;
+      display: block;
     }
 
     ::selection {
@@ -186,6 +197,14 @@
       letter-spacing: -0.01em;
       transition: transform 0.25s var(--ease-apple), opacity 0.25s var(--ease-apple);
       white-space: nowrap;
+    }
+
+    .nav-cta-full {
+      display: inline;
+    }
+
+    .nav-cta-short {
+      display: none;
     }
 
     .navbar-cta:hover {
@@ -352,6 +371,20 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      overflow: hidden;
+    }
+
+    .ambient-glow-wrapper {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      max-width: 100vw;
+      height: 100%;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
     }
 
     /* Subtle Ambient Glow behind the player mockup */
@@ -359,8 +392,8 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 520px;
-      height: 520px;
+      width: min(520px, 90vw);
+      height: min(520px, 90vw);
       transform: translate(-50%, -50%);
       background: radial-gradient(circle, rgba(245, 245, 247, 0.08) 0%, rgba(120, 125, 160, 0.04) 45%, rgba(7, 7, 9, 0) 72%);
       pointer-events: none;
@@ -987,13 +1020,257 @@
     @media (max-width: 860px) {
       .bento-card {
         grid-column: span 12;
-        padding: 28px;
       }
       .navbar-links {
         display: none;
       }
+    }
+
+    @media (max-width: 768px) {
+      /* 1. Viewport & Container Reset */
+      .container {
+        padding: 0 16px;
+      }
+
+      /* 2. Floating Capsule Navbar Mobile */
+      .navbar-wrapper {
+        top: 12px;
+        padding: 0;
+        width: 100%;
+        left: 0;
+        right: 0;
+      }
+
+      .navbar-capsule {
+        width: calc(100% - 24px);
+        max-width: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        position: relative;
+        justify-content: space-between;
+        padding: 10px 16px;
+        height: auto;
+        min-height: 52px;
+        gap: 12px;
+        box-sizing: border-box;
+      }
+
+      .navbar-links {
+        display: none !important;
+      }
+
+      .nav-cta-full {
+        display: none !important;
+      }
+
+      .nav-cta-short {
+        display: inline !important;
+      }
+
+      .navbar-brand {
+        font-size: 0.95rem;
+      }
+
+      .navbar-cta {
+        padding: 0 14px;
+        height: 34px;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+      }
+
+      /* 3. Hero Section & Responsive Fluid Typography */
+      .hero-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 100px 20px 48px 20px;
+        width: 100%;
+        max-width: 100vw;
+        box-sizing: border-box;
+      }
+
+      .hero-title {
+        font-size: clamp(2.2rem, 8vw, 4.5rem);
+        line-height: 1.08;
+        word-break: break-word;
+      }
+
+      .hero-subtitle {
+        font-size: clamp(1rem, 4vw, 1.25rem);
+        max-width: 90%;
+        margin-inline: auto;
+      }
+
+      /* Mode Switcher Pill Scroll */
+      .mode-switcher {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 4px;
+        gap: 4px;
+        margin-bottom: 20px;
+      }
+
+      .mode-switcher::-webkit-scrollbar {
+        display: none;
+      }
+
+      .mode-tab {
+        padding: 6px 12px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+      }
+
+      /* Mockup del Reproductor: No fixed pixel sizes exceeding 320px */
+      .phone-frame {
+        width: min(88vw, 340px) !important;
+        height: auto !important;
+        max-height: none !important;
+        margin: 32px auto 0 auto !important;
+        transform: none !important;
+        padding: 14px 12px;
+        border-radius: 36px;
+        box-sizing: border-box;
+      }
+
+      .phone-body {
+        gap: 12px;
+      }
+
+      .phone-view {
+        height: auto;
+      }
+
+      .cover-stage {
+        height: auto;
+        padding: 8px 0;
+        margin: 2px 0 6px;
+      }
+
+      .reactive-cover {
+        width: min(60vw, 210px);
+        height: min(60vw, 210px);
+        border-radius: 18px;
+      }
+
+      .player-controls {
+        gap: 20px;
+      }
+
+      .ctrl-play {
+        width: 48px;
+        height: 48px;
+      }
+
+      .capsule-bottombar {
+        height: 48px;
+        padding: 0 6px;
+      }
+
+      .nav-pill-item {
+        padding: 6px 10px;
+        font-size: 0.68rem;
+        gap: 4px;
+      }
+
+      .capsule-miniplayer {
+        height: 48px;
+        padding: 0 10px 0 6px;
+      }
+
+      .mini-thumb {
+        width: 32px;
+        height: 32px;
+      }
+
+      .mini-title {
+        max-width: 130px;
+      }
+
+      .mini-sub {
+        max-width: 130px;
+      }
+
+      .ambient-glow {
+        width: min(320px, 90vw);
+        height: min(320px, 90vw);
+      }
+
+      /* 4. Bento Grid & Cards 1 Column */
+      .bento-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+        width: 100% !important;
+      }
+
+      .bento-card {
+        grid-column: 1 / -1 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 24px 20px !important;
+        border-radius: 22px !important;
+        box-sizing: border-box !important;
+      }
+
       .opensource-card {
-        padding: 32px 24px;
+        padding: 24px 20px !important;
+        border-radius: 22px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        text-align: left !important;
+        width: 100% !important;
+        gap: 20px !important;
+        box-sizing: border-box !important;
+      }
+
+      .opensource-card .btn-secondary {
+        width: 100% !important;
+        max-width: 320px !important;
+        justify-content: center !important;
+        margin: 0 auto !important;
+        box-sizing: border-box !important;
+      }
+
+      /* 5. CTAs Thumb-Friendly */
+      .hero-actions {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        width: 100% !important;
+        gap: 12px !important;
+      }
+
+      .hero-actions .btn-primary,
+      .hero-actions .btn-secondary {
+        width: 100% !important;
+        max-width: 320px !important;
+        justify-content: center !important;
+        margin: 0 auto !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Section & Footer Polish */
+      .section {
+        padding: 56px 0;
+      }
+
+      .section-header {
+        margin-bottom: 36px;
+      }
+
+      .footer-inner {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 20px;
+      }
+
+      .footer-links {
+        justify-content: center;
+        gap: 16px;
       }
     }
   </style>
@@ -1024,7 +1301,8 @@
       </ul>
 
       <a id="nav-download-btn" href="https://github.com/sepuro/Jet-Music/releases/download/v1.7.0/Jet-Music-v1.7.0-release.apk" class="navbar-cta" download>
-        <span>Descargar APK</span>
+        <span class="nav-cta-full">Descargar APK</span>
+        <span class="nav-cta-short">Descargar</span>
       </a>
     </nav>
   </header>
@@ -1074,7 +1352,9 @@
 
       <!-- Interactive Mobile Player Showcase -->
       <div id="showcase" class="showcase-wrapper">
-        <div class="ambient-glow" aria-hidden="true"></div>
+        <div class="ambient-glow-wrapper" aria-hidden="true">
+          <div class="ambient-glow"></div>
+        </div>
 
         <div class="mode-switcher" role="tablist" aria-label="Modos de interfaz de Jet Music">
           <button type="button" class="mode-tab active" data-view="player" role="tab" aria-selected="true">Carátula Reactiva</button>
