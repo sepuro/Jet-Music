@@ -1,12 +1,12 @@
 package echo.music.iad1tya.ui.theme
 
 import android.graphics.Bitmap
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -15,19 +15,95 @@ import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.palette.graphics.Palette
-import com.materialkolor.PaletteStyle
-import com.materialkolor.dynamiccolor.ColorSpec
-import com.materialkolor.rememberDynamicColorScheme
 import com.materialkolor.score.Score
 import echo.music.iad1tya.constants.AppFont
 import echo.music.iad1tya.constants.SelectedFontKey
 import echo.music.iad1tya.utils.rememberPreference
 
 val DefaultThemeColor = Color(0xFFED5564)
+
+val LightColorScheme =
+  lightColorScheme(
+    primary = LightPrimary,
+    onPrimary = LightOnPrimary,
+    primaryContainer = LightPrimaryContainer,
+    onPrimaryContainer = LightOnPrimaryContainer,
+    inversePrimary = LightInversePrimary,
+    secondary = LightSecondary,
+    onSecondary = LightOnSecondary,
+    secondaryContainer = LightSecondaryContainer,
+    onSecondaryContainer = LightOnSecondaryContainer,
+    tertiary = LightTertiary,
+    onTertiary = LightOnTertiary,
+    tertiaryContainer = LightTertiaryContainer,
+    onTertiaryContainer = LightOnTertiaryContainer,
+    background = LightBackground,
+    onBackground = LightOnBackground,
+    surface = LightSurface,
+    onSurface = LightOnSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    surfaceTint = LightPrimary,
+    inverseSurface = LightPrimary,
+    inverseOnSurface = LightBackground,
+    error = Color(0xFFDC2626),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFFEE2E2),
+    onErrorContainer = Color(0xFF7F1D1D),
+    outline = LightOutline,
+    outlineVariant = LightOutlineVariant,
+    scrim = Color(0xFF000000),
+    surfaceBright = LightSurfaceContainerLowest,
+    surfaceDim = LightOutlineVariant,
+    surfaceContainerLowest = LightSurfaceContainerLowest,
+    surfaceContainerLow = LightSurfaceContainerLow,
+    surfaceContainer = LightSurfaceContainer,
+    surfaceContainerHigh = LightSurfaceContainerHigh,
+    surfaceContainerHighest = LightSurfaceContainerHighest,
+  )
+
+val DarkColorScheme =
+  darkColorScheme(
+    primary = DarkPrimary,
+    onPrimary = DarkOnPrimary,
+    primaryContainer = DarkPrimaryContainer,
+    onPrimaryContainer = DarkOnPrimaryContainer,
+    inversePrimary = DarkInversePrimary,
+    secondary = DarkSecondary,
+    onSecondary = DarkOnSecondary,
+    secondaryContainer = DarkSecondaryContainer,
+    onSecondaryContainer = DarkOnSecondaryContainer,
+    tertiary = DarkTertiary,
+    onTertiary = DarkOnTertiary,
+    tertiaryContainer = DarkTertiaryContainer,
+    onTertiaryContainer = DarkOnTertiaryContainer,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    surfaceTint = DarkPrimary,
+    inverseSurface = DarkPrimary,
+    inverseOnSurface = DarkOnPrimary,
+    error = Color(0xFFF87171),
+    onError = Color(0xFF450A0A),
+    errorContainer = Color(0xFF7F1D1D),
+    onErrorContainer = Color(0xFFFECACA),
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
+    scrim = Color(0xFF000000),
+    surfaceBright = DarkSurfaceContainerHighest,
+    surfaceDim = DarkSurfaceContainerLowest,
+    surfaceContainerLowest = DarkSurfaceContainerLowest,
+    surfaceContainerLow = DarkSurfaceContainerLow,
+    surfaceContainer = DarkSurfaceContainer,
+    surfaceContainerHigh = DarkSurfaceContainerHigh,
+    surfaceContainerHighest = DarkSurfaceContainerHighest,
+  )
 
 @Composable
 fun echomusicTheme(
@@ -37,7 +113,6 @@ fun echomusicTheme(
   themeColor: Color = DefaultThemeColor,
   content: @Composable () -> Unit,
 ) {
-  val context = LocalContext.current
   val selectedFontValue by rememberPreference(SelectedFontKey, AppFont.SYSTEM.value)
   val customFontPathValue by rememberPreference(echo.music.iad1tya.constants.CustomFontPathKey, "")
 
@@ -64,45 +139,15 @@ fun echomusicTheme(
       }
     }
 
-  val useSystemDynamicColor =
-    !isMonochrome && (themeColor == DefaultThemeColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-
-  val baseColorScheme =
-    if (isMonochrome) {
-      val dynamicMono =
-        rememberDynamicColorScheme(
-          seedColor = Color(0xFF808080),
-          isDark = darkTheme,
-          specVersion = ColorSpec.SpecVersion.SPEC_2025,
-          style = PaletteStyle.Monochrome
-        )
-      remember(dynamicMono) { dynamicMono.toGrayscaleColorScheme() }
-    } else if (useSystemDynamicColor) {
-      if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    } else {
-      rememberDynamicColorScheme(
-        seedColor = themeColor,
-        isDark = darkTheme,
-        specVersion = ColorSpec.SpecVersion.SPEC_2025,
-        style = PaletteStyle.TonalSpot
-      )
-    }
-
-  val colorScheme =
-    remember(baseColorScheme, pureBlack, darkTheme, isMonochrome) {
-      if (darkTheme && pureBlack) {
-        baseColorScheme.pureBlack(true)
-      } else {
-        baseColorScheme
-      }
-    }
+  val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+  val typography = remember(brandFont) { getTypography(brandFont) }
 
   MaterialTheme(
     colorScheme = colorScheme,
-    typography = getTypography(brandFont),
+    typography = typography,
     shapes =
-      androidx.compose.material3.MaterialTheme.shapes.copy(
-        extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+      MaterialTheme.shapes.copy(
+        extraSmall = RoundedCornerShape(24.dp)
       ),
     content = content
   )
@@ -132,64 +177,9 @@ fun Bitmap.extractGradientColors(): List<Color> {
   else listOf(Color(0xFF595959), Color(0xFF0D0D0D))
 }
 
-fun ColorScheme.pureBlack(apply: Boolean) =
-  if (apply) copy(
-    surface = Color.Black,
-    background = Color.Black,
-    surfaceContainerLowest = Color.Black,
-    surfaceContainerLow = Color(0xFF0C0C0C),
-    surfaceContainer = Color(0xFF141414),
-    surfaceContainerHigh = Color(0xFF1B1B1B),
-    surfaceContainerHighest = Color(0xFF222222)
-  ) else this
+fun ColorScheme.pureBlack(apply: Boolean) = this
 
-fun ColorScheme.toGrayscaleColorScheme(): ColorScheme {
-  fun convert(color: Color): Color {
-    val hsl = FloatArray(3)
-    androidx.core.graphics.ColorUtils.colorToHSL(color.toArgb(), hsl)
-    hsl[1] = 0f
-    return Color(androidx.core.graphics.ColorUtils.HSLToColor(hsl)).copy(alpha = color.alpha)
-  }
-
-  return copy(
-    primary = convert(primary),
-    onPrimary = convert(onPrimary),
-    primaryContainer = convert(primaryContainer),
-    onPrimaryContainer = convert(onPrimaryContainer),
-    inversePrimary = convert(inversePrimary),
-    secondary = convert(secondary),
-    onSecondary = convert(onSecondary),
-    secondaryContainer = convert(secondaryContainer),
-    onSecondaryContainer = convert(onSecondaryContainer),
-    tertiary = convert(tertiary),
-    onTertiary = convert(onTertiary),
-    tertiaryContainer = convert(tertiaryContainer),
-    onTertiaryContainer = convert(onTertiaryContainer),
-    background = convert(background),
-    onBackground = convert(onBackground),
-    surface = convert(surface),
-    onSurface = convert(onSurface),
-    surfaceVariant = convert(surfaceVariant),
-    onSurfaceVariant = convert(onSurfaceVariant),
-    surfaceTint = convert(surfaceTint),
-    inverseSurface = convert(inverseSurface),
-    inverseOnSurface = convert(inverseOnSurface),
-    error = convert(error),
-    onError = convert(onError),
-    errorContainer = convert(errorContainer),
-    onErrorContainer = convert(onErrorContainer),
-    outline = convert(outline),
-    outlineVariant = convert(outlineVariant),
-    scrim = convert(scrim),
-    surfaceBright = convert(surfaceBright),
-    surfaceDim = convert(surfaceDim),
-    surfaceContainer = convert(surfaceContainer),
-    surfaceContainerHigh = convert(surfaceContainerHigh),
-    surfaceContainerHighest = convert(surfaceContainerHighest),
-    surfaceContainerLow = convert(surfaceContainerLow),
-    surfaceContainerLowest = convert(surfaceContainerLowest)
-  )
-}
+fun ColorScheme.toGrayscaleColorScheme(): ColorScheme = this
 
 val ColorSaver =
   object : Saver<Color, Int> {

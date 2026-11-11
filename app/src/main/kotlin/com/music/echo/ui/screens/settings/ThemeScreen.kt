@@ -84,32 +84,23 @@ import echo.music.iad1tya.utils.rememberPreference
 @Composable
 fun ThemeScreen(navController: NavController, highlightKey: String? = null) {
   val (darkMode, onDarkModeChange) = rememberEnumPreference(DarkModeKey, DarkMode.AUTO)
-  val (pureBlack, onPureBlackChangeRaw) = rememberPreference(PureBlackKey, defaultValue = false)
+  val (_, onPureBlackChangeRaw) = rememberPreference(PureBlackKey, defaultValue = false)
   val (_, onPureBlackMiniPlayerChange) =
     rememberPreference(PureBlackMiniPlayerKey, defaultValue = false)
-  val (isMonochrome, onMonochromeChange) =
+  val (_, onMonochromeChange) =
     rememberPreference(IsMonochromeThemeKey, defaultValue = false)
 
-  val onPureBlackChange: (Boolean) -> Unit = { enabled ->
-    onPureBlackChangeRaw(enabled)
-    onPureBlackMiniPlayerChange(enabled)
-  }
-  val (selectedThemeColorInt, onSelectedThemeColorChange) =
-    rememberPreference(SelectedThemeColorKey, DefaultThemeColor.toArgb())
-  val (_, onDynamicThemeChange) = rememberPreference(DynamicThemeKey, defaultValue = true)
-
-  val selectedThemeColor = Color(selectedThemeColorInt)
-
-  val handleColorSelection: (Color) -> Unit = { color ->
+  val selectMode: (DarkMode) -> Unit = { mode ->
+    onPureBlackChangeRaw(false)
+    onPureBlackMiniPlayerChange(false)
     onMonochromeChange(false)
-    onSelectedThemeColorChange(color.toArgb())
-    onDynamicThemeChange(color == DefaultThemeColor)
+    onDarkModeChange(mode)
   }
 
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text(stringResource(R.string.theme_colors), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.theme), fontWeight = FontWeight.Bold) },
         navigationIcon = {
           IconButton(onClick = { navController.navigateUp() }) {
             Icon(
@@ -129,15 +120,7 @@ fun ThemeScreen(navController: NavController, highlightKey: String? = null) {
     LazyColumn(
       modifier =
         Modifier.fillMaxSize()
-          .background(
-            Brush.verticalGradient(
-              colors =
-                listOf(
-                  MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f),
-                  MaterialTheme.colorScheme.surface
-                )
-            )
-          )
+          .background(MaterialTheme.colorScheme.surface)
           .padding(innerPadding),
       contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp),
       verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -158,52 +141,17 @@ fun ThemeScreen(navController: NavController, highlightKey: String? = null) {
           ) {
             ThemeModeCard(
               modifier = Modifier.weight(1f),
-              title = stringResource(R.string.dark_theme_follow_system),
-              icon = Icons.Rounded.BrightnessAuto,
-              isSelected = darkMode == DarkMode.AUTO && !isMonochrome,
-              onClick = {
-                onDarkModeChange(DarkMode.AUTO)
-                onPureBlackChange(false)
-                onMonochromeChange(false)
-              }
-            )
-            ThemeModeCard(
-              modifier = Modifier.weight(1f),
               title = "Light",
               icon = Icons.Rounded.LightMode,
-              isSelected = darkMode == DarkMode.OFF && !isMonochrome,
-              onClick = {
-                onDarkModeChange(DarkMode.OFF)
-                onPureBlackChange(false)
-                onMonochromeChange(false)
-              }
+              isSelected = darkMode == DarkMode.OFF,
+              onClick = { selectMode(DarkMode.OFF) }
             )
-          }
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-          ) {
             ThemeModeCard(
               modifier = Modifier.weight(1f),
               title = "Dark",
               icon = Icons.Rounded.DarkMode,
-              isSelected = darkMode == DarkMode.ON && !pureBlack && !isMonochrome,
-              onClick = {
-                onDarkModeChange(DarkMode.ON)
-                onPureBlackChange(false)
-                onMonochromeChange(false)
-              }
-            )
-            ThemeModeCard(
-              modifier = Modifier.weight(1f),
-              title = "AMOLED",
-              icon = Icons.Rounded.Contrast,
-              isSelected = pureBlack && !isMonochrome,
-              onClick = {
-                onDarkModeChange(DarkMode.ON)
-                onPureBlackChange(true)
-                onMonochromeChange(false)
-              }
+              isSelected = darkMode == DarkMode.ON,
+              onClick = { selectMode(DarkMode.ON) }
             )
           }
           Row(
@@ -211,121 +159,12 @@ fun ThemeScreen(navController: NavController, highlightKey: String? = null) {
             horizontalArrangement = Arrangement.spacedBy(16.dp)
           ) {
             ThemeModeCard(
-              modifier = Modifier.weight(1f),
-              title = stringResource(R.string.theme_mode_monochrome),
-              painter = painterResource(R.drawable.ic_monochrome_mode),
-              isSelected = isMonochrome && !pureBlack,
-              onClick = {
-                onMonochromeChange(true)
-                onPureBlackChange(false)
-              }
+              modifier = Modifier.fillMaxWidth(),
+              title = stringResource(R.string.dark_theme_follow_system),
+              icon = Icons.Rounded.BrightnessAuto,
+              isSelected = darkMode == DarkMode.AUTO,
+              onClick = { selectMode(DarkMode.AUTO) }
             )
-            ThemeModeCard(
-              modifier = Modifier.weight(1f),
-              title = "Monochrome OLED",
-              painter = painterResource(R.drawable.ic_monochrome_mode),
-              isSelected = isMonochrome && pureBlack,
-              onClick = {
-                onDarkModeChange(DarkMode.ON)
-                onMonochromeChange(true)
-                onPureBlackChange(true)
-              }
-            )
-          }
-        }
-      }
-
-      item {
-        HorizontalDivider(
-          modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
-          color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-        )
-      }
-
-      item {
-        Text(
-          text = stringResource(R.string.color_palette),
-          style = MaterialTheme.typography.titleMedium,
-          color = MaterialTheme.colorScheme.primary,
-          fontWeight = FontWeight.Bold,
-          modifier = Modifier.padding(bottom = 16.dp, start = 4.dp)
-        )
-
-        Card(
-          modifier = Modifier.fillMaxWidth(),
-          shape = RoundedCornerShape(32.dp),
-          colors =
-            CardDefaults.cardColors(
-              containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.6f)
-            ),
-          elevation = CardDefaults.cardElevation(0.dp),
-          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-        ) {
-          Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-          ) {
-            val isDynamic = selectedThemeColor == DefaultThemeColor
-            Row(
-              modifier =
-                Modifier.fillMaxWidth()
-                  .clip(RoundedCornerShape(16.dp))
-                  .clickable {
-                    if (!isDynamic) {
-                      handleColorSelection(DefaultThemeColor)
-                    } else {
-                      handleColorSelection(Color(0xFF1E88E5))
-                    }
-                  }
-                  .padding(8.dp),
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-              ) {
-                Box(
-                  modifier =
-                    Modifier.size(40.dp)
-                      .clip(RoundedCornerShape(12.dp))
-                      .background(MaterialTheme.colorScheme.primaryContainer),
-                  contentAlignment = Alignment.Center
-                ) {
-                  Icon(
-                    painter = painterResource(R.drawable.palette),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(24.dp)
-                  )
-                }
-                Text(
-                  text = stringResource(R.string.palette_dynamic),
-                  style = MaterialTheme.typography.titleMedium,
-                  fontWeight = FontWeight.Medium,
-                  color = MaterialTheme.colorScheme.onSurface
-                )
-              }
-              Switch(
-                checked = isDynamic,
-                onCheckedChange = { checked ->
-                  if (checked) {
-                    handleColorSelection(DefaultThemeColor)
-                  } else {
-                    handleColorSelection(Color(0xFF1E88E5))
-                  }
-                }
-              )
-            }
-
-            AnimatedVisibility(visible = !isDynamic) {
-              HsvColorPicker(
-                initialColor =
-                  if (selectedThemeColor == DefaultThemeColor) Color(0xFF1E88E5)
-                  else selectedThemeColor,
-                onColorCommit = { handleColorSelection(it) }
-              )
-            }
           }
         }
       }

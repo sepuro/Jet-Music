@@ -207,7 +207,7 @@ fun MiniPlayer(
     val globalPureBlack = pureBlackGlobalPref && useDarkTheme
 
     val isFollowTheme = miniPlayerBackground == PlayerBackgroundStyle.DEFAULT
-    val pureBlack = if (isFollowTheme) globalPureBlack else pureBlackMini
+    val pureBlack = false
 
     val glassConfig = LocalGlassEffectConfig.current
     val useGlass =
@@ -286,7 +286,7 @@ private fun NewMiniPlayer(progressState: ProgressState, modifier: Modifier = Mod
     rememberPreference(echo.music.iad1tya.constants.PureBlackKey, defaultValue = false)
   val globalPureBlack = pureBlackGlobalPref && useDarkTheme
   val isFollowTheme = miniPlayerBackground == PlayerBackgroundStyle.DEFAULT
-  val pureBlack = if (isFollowTheme) globalPureBlack else pureBlackMini
+  val pureBlack = false
 
   val glassConfig = LocalGlassEffectConfig.current
   val useGlass =
@@ -679,7 +679,7 @@ private fun LegacyMiniPlayer(progressState: ProgressState, modifier: Modifier = 
     rememberPreference(echo.music.iad1tya.constants.PureBlackKey, defaultValue = false)
   val globalPureBlack = pureBlackGlobalPref && useDarkTheme
   val isFollowTheme = miniPlayerBackground == PlayerBackgroundStyle.DEFAULT
-  val pureBlack = if (isFollowTheme) globalPureBlack else pureBlackMini
+  val pureBlack = false
   val glassConfig = LocalGlassEffectConfig.current
   val useGlass =
     (miniPlayerBackground == PlayerBackgroundStyle.LIQUID_GLASS ||
