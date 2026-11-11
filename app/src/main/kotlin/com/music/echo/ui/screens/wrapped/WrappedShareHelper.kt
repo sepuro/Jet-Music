@@ -517,7 +517,7 @@ object WrappedShareHelper {
         java.io.FileOutputStream(imageFile).use { out ->
           bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
         }
-        androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.FileProvider", imageFile)
+        androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", imageFile)
       }
 
       val intent = Intent(Intent.ACTION_SEND).apply {

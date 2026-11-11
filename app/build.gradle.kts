@@ -30,11 +30,15 @@ android {
   ndkVersion = "28.2.13676358"
 
   defaultConfig {
-    applicationId = "echo.music.iad1tya"
+    applicationId = "app.jetmusic.android"
     minSdk = 26
     targetSdk = 36
-    versionCode = 169
-    versionName = "1.6.0"
+    versionCode = 170
+    versionName = "1.7.0"
+
+    ndk {
+      abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+    }
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     vectorDrawables.useSupportLibrary = true
@@ -98,6 +102,10 @@ android {
     create("universal") {
       dimension = "abi"
       buildConfigField("String", "ARCHITECTURE", "\"universal\"")
+      ndk {
+        abiFilters.clear()
+        abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
+      }
     }
     create("arm64") {
       dimension = "abi"
@@ -163,6 +171,9 @@ android {
           ?: localProperties.getProperty("KEY_PASSWORD")
           ?: System.getenv("KEY_PASSWORD")
           ?: "android"
+      enableV1Signing = true
+      enableV2Signing = true
+      enableV3Signing = true
     }
     getByName("debug") {
       keyAlias = "androiddebugkey"

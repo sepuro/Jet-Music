@@ -174,7 +174,7 @@ object DownloadNotificationManager {
         setDataAndType(
           androidx.core.content.FileProvider.getUriForFile(
             appContext,
-            "${appContext.packageName}.FileProvider",
+            "${appContext.packageName}.fileprovider",
             java.io.File(filePath)
           ),
           "application/vnd.android.package-archive"
@@ -290,7 +290,7 @@ object DownloadNotificationManager {
         setDataAndType(
           androidx.core.content.FileProvider.getUriForFile(
             appContext,
-            "${appContext.packageName}.FileProvider",
+            "${appContext.packageName}.fileprovider",
             java.io.File(filePath)
           ),
           "application/vnd.android.package-archive"

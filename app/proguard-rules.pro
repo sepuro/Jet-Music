@@ -192,22 +192,51 @@
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
 -keep class com.music.innertube.** { *; }
 -keep class com.music.innertube.models.** { *; }
 -keep class com.music.innertube.pages.** { *; }
+-keep class com.metrolist.innertubex.** { *; }
+-dontwarn com.metrolist.innertubex.**
+-keep class echo.music.iad1tya.db.** { *; }
 -keep class echo.music.iad1tya.db.entities.** { *; }
 -keep class echo.music.iad1tya.models.** { *; }
+-keep class echo.music.iad1tya.data.** { *; }
+-keep class echo.music.iad1tya.api.** { *; }
+-keep class echo.music.iad1tya.ai.** { *; }
+-keep class echo.music.iad1tya.discord.** { *; }
+-keep class echo.music.iad1tya.spotify.** { *; }
+-keep class echo.music.iad1tya.spotifyimport.** { *; }
+-keep class echo.music.iad1tya.podcast.** { *; }
+-keep class echo.music.iad1tya.musicflow.** { *; }
+-keep class echo.music.iad1tya.applecanvas.** { *; }
+-keep class echo.music.iad1tya.artistvideo.** { *; }
+-keep class echo.music.iad1tya.canvas.** { *; }
+-keep class echo.music.iad1tya.echomusiccanvas.** { *; }
+-keep class echo.music.iad1tya.betterlyrics.** { *; }
+-keep class echo.music.domain.models.** { *; }
+-keep class echo.music.dsp.** { *; }
+-keep class echo.music.usbaudio.** { *; }
 -keep class com.music.echo.spotify.** { *; }
+-keep class com.music.echo.cloud.** { *; }
+-keep class com.music.echo.metadata.models.** { *; }
+-keep class com.music.echo.unison.** { *; }
 -keep class com.music.lrclib.** { *; }
 -keep class com.music.kugou.** { *; }
 -keep class com.music.betterlyrics.** { *; }
 -keep class com.music.simpmusic.** { *; }
+-keep class com.music.paxsenix.** { *; }
+-keep class com.music.youlyplus.** { *; }
 -keep class org.schabi.newpipe.** { *; }
 -dontwarn org.schabi.newpipe.**
 -keep class androidx.media3.** { *; }
 -dontwarn androidx.media3.**
 -keep class com.google.gson.** { *; }
 -dontwarn com.google.gson.**
+-keep class kotlinx.serialization.** { *; }
+-dontwarn kotlinx.serialization.**
 -keep class retrofit2.** { *; }
 -dontwarn retrofit2.**
 -keepclasseswithmembers class * {

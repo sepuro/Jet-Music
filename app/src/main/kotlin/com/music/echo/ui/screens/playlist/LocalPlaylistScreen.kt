@@ -929,7 +929,7 @@ fun LocalPlaylistHeader(
         val destFile =
           java.io.File(context.cacheDir, "playlist_cover_crop_${System.currentTimeMillis()}.jpg")
         val destUri =
-          FileProvider.getUriForFile(context, "${context.packageName}.FileProvider", destFile)
+          FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", destFile)
         pendingCropDestUri = destUri
 
         val options =

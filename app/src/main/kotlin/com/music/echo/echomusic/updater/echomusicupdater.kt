@@ -361,7 +361,7 @@ fun UpdateScreen(navController: NavHostController) {
                         val uri =
                           FileProvider.getUriForFile(
                             context,
-                            "${context.packageName}.FileProvider",
+                            "${context.packageName}.fileprovider",
                             file
                           )
                         val installIntent =
@@ -745,7 +745,7 @@ fun installApk(context: Context, apkFile: File) {
   val uri =
     FileProvider.getUriForFile(
       context,
-      "${context.packageName}.FileProvider",
+      "${context.packageName}.fileprovider",
       apkFile
     )
   val installIntent =

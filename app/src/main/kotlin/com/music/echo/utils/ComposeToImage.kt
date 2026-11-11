@@ -564,7 +564,7 @@ object ComposeToImage {
       FileOutputStream(imageFile).use { outputStream ->
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
       }
-      FileProvider.getUriForFile(context, "${context.packageName}.FileProvider", imageFile)
+      FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", imageFile)
     }
   }
 }

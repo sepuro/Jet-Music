@@ -89,7 +89,7 @@ class CrashActivity : ComponentActivity() {
       val crashFile = File(cacheDir, fileName)
       crashFile.writeText(crashLog)
 
-      val uri = FileProvider.getUriForFile(this, "${packageName}.FileProvider", crashFile)
+      val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", crashFile)
 
       val shareIntent =
         Intent(Intent.ACTION_SEND).apply {
