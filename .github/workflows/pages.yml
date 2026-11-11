@@ -1,0 +1,52 @@
+name: Deploy Jet Music Official Website (jetmusic.site)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "docs/**"
+      - "CNAME"
+      - "index.html"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Publish jetmusic.site to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify CNAME and Web Assets
+        run: |
+          test -f docs/CNAME
+          grep -qx "jetmusic.site" docs/CNAME
+          test -f docs/index.html
+          test -f docs/favicon.svg
+          test -f docs/apple-touch-icon.png
+          test -f docs/og-image.png
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./docs"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

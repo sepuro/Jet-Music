@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgSurface" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#121216"/>
+      <stop offset="100%" stop-color="#070709"/>
+    </linearGradient>
+    <linearGradient id="specularBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Minimalist Dark Squircle Background (#070709 -> #121216) with Specular Bevel -->
+  <rect x="30" y="30" width="452" height="452" rx="108" ry="108" fill="url(#bgSurface)" stroke="url(#specularBorder)" stroke-width="5"/>
+
+  <!-- Official Jet Music Emblem (Extracted from Android mipmap-xxxhdpi/ic_launcher) -->
+  <g transform="translate(256, 256) scale(184.32)">
+    <!-- Outer Minimalist Ring -->
+    <circle cx="0" cy="0" r="0.64" fill="none" stroke="#F5F5F7" stroke-width="0.064"/>
+    <!-- Left Vertical Acoustic Pulse Bar -->
+    <line x1="-0.44" y1="-0.22" x2="-0.44" y2="0.22" stroke="#F5F5F7" stroke-width="0.084" stroke-linecap="round"/>
+    <!-- Upper Aerodynamic Origami Wing -->
+    <polygon points="-0.34,-0.38 0.44,-0.02 -0.14,0.04" fill="#F5F5F7" stroke="#F5F5F7" stroke-width="0.036" stroke-linejoin="round"/>
+    <!-- Lower Aerodynamic Origami Wing -->
+    <polygon points="-0.14,0.11 0.44,0.02 -0.34,0.38" fill="#F5F5F7" stroke="#F5F5F7" stroke-width="0.030" stroke-linejoin="round"/>
+  </g>
+</svg>

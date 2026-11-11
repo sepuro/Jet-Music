@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Jet Music — Sonido puro. Diseño minimalista a 120Hz.</title>
+
+  <!-- SEO & Brand Metadata -->
+  <meta name="title" content="Jet Music — Sonido puro. Diseño minimalista a 120Hz." />
+  <meta name="description" content="Reproductor de música minimalista para Android con audio sin pérdidas (FLAC/ALAC), Dolby Atmos, Music Flow, letras sincronizadas en tiempo real y cápsulas flotantes Apple Glass a 120Hz. 100% Open Source y sin anuncios." />
+  <meta name="author" content="Jet Music" />
+  <meta name="theme-color" content="#070709" />
+  <link rel="canonical" href="https://jetmusic.site/" />
+
+  <!-- Open Graph / Social Media -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://jetmusic.site/" />
+  <meta property="og:title" content="Jet Music — Sonido puro. Diseño minimalista a 120Hz." />
+  <meta property="og:description" content="Audio sin pérdidas, Dolby Atmos, Music Flow, letras sincronizadas y acabado Apple Glass a 120Hz para Android. 100% Open Source y libre de anuncios." />
+  <meta property="og:image" content="https://jetmusic.site/og-image.png" />
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://jetmusic.site/" />
+  <meta name="twitter:title" content="Jet Music — Sonido puro. Diseño minimalista a 120Hz." />
+  <meta name="twitter:description" content="Audio sin pérdidas, Dolby Atmos, Music Flow y cápsulas flotantes Apple Glass a 120Hz para Android." />
+  <meta name="twitter:image" content="https://jetmusic.site/og-image.png" />
+
+  <!-- Favicons & Web App Manifest -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="manifest" href="site.webmanifest" />
+
+  <!-- Typography: SF Pro Display / Inter Fallback -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ==========================================================================
+       Jet Music Official Design System (Apple Music Minimalist Architecture)
+       ========================================================================== */
+    :root {
+      --bg-primary: #070709;
+      --bg-card: #121216;
+      --bg-card-hover: #17171D;
+      --bg-capsule: rgba(20, 20, 22, 0.86);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-specular: rgba(255, 255, 255, 0.12);
+      --border-highlight: rgba(255, 255, 255, 0.18);
+      --text-primary: #F5F5F7;
+      --text-secondary: #86868B;
+      --text-muted: #5E5E63;
+      --accent-white: #F5F5F7;
+      --radius-bento: 28px;
+      --radius-capsule: 9999px;
+      --ease-apple: cubic-bezier(0.22, 1, 0.36, 1);
+      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      color-scheme: dark;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      min-height: 100dvh;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      overflow-x: hidden;
+      selection-background-color: rgba(245, 245, 247, 0.2);
+    }
+
+    ::selection {
+      background: rgba(245, 245, 247, 0.18);
+      color: var(--text-primary);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /* ==========================================================================
+       1. Floating Capsule Navbar (Apple Glass Specular Bevel)
+       ========================================================================== */
+    .navbar-wrapper {
+      position: fixed;
+      top: 20px;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      padding: 0 20px;
+      pointer-events: none;
+    }
+
+    .navbar-capsule {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+      width: 100%;
+      max-width: 820px;
+      height: 56px;
+      padding: 0 10px 0 18px;
+      background: rgba(18, 18, 22, 0.78);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border: 1px solid var(--border-specular);
+      border-radius: var(--radius-capsule);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      transition: transform 0.4s var(--ease-apple), border-color 0.4s var(--ease-apple);
+    }
+
+    .navbar-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+    }
+
+    .navbar-logo-box {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: #0B0B0E;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .navbar-logo-box svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .navbar-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .navbar-links a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: -0.01em;
+      transition: color 0.25s var(--ease-apple);
+    }
+
+    .navbar-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .navbar-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: var(--radius-capsule);
+      background: var(--text-primary);
+      color: #070709;
+      font-size: 0.825rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      transition: transform 0.25s var(--ease-apple), opacity 0.25s var(--ease-apple);
+      white-space: nowrap;
+    }
+
+    .navbar-cta:hover {
+      transform: scale(1.02);
+      opacity: 0.92;
+    }
+
+    .navbar-cta:active {
+      transform: scale(0.98);
+    }
+
+    /* ==========================================================================
+       2. Hero Section & Interactive Mobile Player Showcase
+       ========================================================================== */
+    .container {
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .hero-section {
+      position: relative;
+      padding: 136px 0 88px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: var(--radius-capsule);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin-bottom: 24px;
+    }
+
+    .hero-badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-primary);
+      box-shadow: 0 0 8px rgba(245, 245, 247, 0.8);
+    }
+
+    .hero-title {
+      font-size: clamp(2.6rem, 6vw, 4.75rem);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+      color: var(--text-primary);
+      max-width: 860px;
+      margin-bottom: 20px;
+    }
+
+    .hero-title-muted {
+      color: var(--text-secondary);
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1.05rem, 2vw, 1.28rem);
+      font-weight: 400;
+      line-height: 1.55;
+      letter-spacing: -0.015em;
+      color: var(--text-secondary);
+      max-width: 640px;
+      margin-bottom: 36px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 54px;
+      padding: 0 28px;
+      border-radius: var(--radius-capsule);
+      background: var(--text-primary);
+      color: #070709;
+      font-size: 0.98rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      box-shadow: 0 12px 32px rgba(245, 245, 247, 0.14);
+      transition: transform 0.3s var(--ease-apple), box-shadow 0.3s var(--ease-apple);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 40px rgba(245, 245, 247, 0.22);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 54px;
+      padding: 0 24px;
+      border-radius: var(--radius-capsule);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border-specular);
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      transition: background 0.3s var(--ease-apple), border-color 0.3s var(--ease-apple), transform 0.3s var(--ease-apple);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-highlight);
+      transform: translateY(-2px);
+    }
+
+    .hero-meta {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      margin-bottom: 56px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .hero-meta-pill {
+      padding: 2px 9px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      color: var(--text-primary);
+    }
+
+    /* ==========================================================================
+       Interactive Phone Mockup (Reactive Cover, Music Flow & Floating Capsules)
+       ========================================================================== */
+    .showcase-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Subtle Ambient Glow behind the player mockup */
+    .ambient-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 520px;
+      height: 520px;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(245, 245, 247, 0.08) 0%, rgba(120, 125, 160, 0.04) 45%, rgba(7, 7, 9, 0) 72%);
+      pointer-events: none;
+      z-index: 0;
+      transition: background 0.8s var(--ease-apple);
+    }
+
+    .mode-switcher {
+      position: relative;
+      z-index: 2;
+      display: inline-flex;
+      gap: 6px;
+      padding: 5px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-capsule);
+      margin-bottom: 28px;
+    }
+
+    .mode-tab {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      padding: 8px 16px;
+      border-radius: var(--radius-capsule);
+      cursor: pointer;
+      transition: all 0.3s var(--ease-apple);
+    }
+
+    .mode-tab.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+
+    .phone-frame {
+      position: relative;
+      z-index: 1;
+      width: 348px;
+      max-width: 100%;
+      height: 700px;
+      background: #0C0C10;
+      border-radius: 48px;
+      border: 1.5px solid rgba(255, 255, 255, 0.14);
+      box-shadow:
+        0 32px 80px rgba(0, 0, 0, 0.75),
+        0 0 0 6px #070709,
+        0 0 0 7px rgba(255, 255, 255, 0.07),
+        inset 0 1px 1px rgba(255, 255, 255, 0.18);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* Atmospheric Dynamic Player Canvas inside Phone */
+    .phone-canvas-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 50% 26%, rgba(62, 66, 86, 0.42) 0%, rgba(18, 18, 24, 0.88) 58%, #09090C 100%);
+      z-index: 0;
+      transition: opacity 0.6s var(--ease-apple);
+    }
+
+    .phone-statusbar {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 12px 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: rgba(245, 245, 247, 0.85);
+    }
+
+    .phone-camera-cutout {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #000;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .phone-body {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 6px 4px 10px;
+    }
+
+    /* View Panels inside Phone */
+    .phone-view {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      justify-content: space-between;
+    }
+
+    .phone-view.active {
+      display: flex;
+    }
+
+    /* Apple Music Reactive Cover Art (Scale 1.0 Playing / 0.85 Paused) */
+    .cover-stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 256px;
+      margin: 4px 0 8px;
+    }
+
+    .reactive-cover {
+      width: 236px;
+      height: 236px;
+      border-radius: 22px;
+      background: linear-gradient(145deg, #1A1B22 0%, #0D0E12 100%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      display: flex;
+       flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      transform: scale(1);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.65);
+      transition: transform 0.55s cubic-bezier(0.22, 1.25, 0.36, 1), box-shadow 0.55s var(--ease-apple);
+      cursor: pointer;
+    }
+
+    .reactive-cover.paused {
+      transform: scale(0.85);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.38);
+    }
+
+    .cover-art-rings {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.09) 0%, transparent 55%),
+        radial-gradient(circle at 75% 80%, rgba(160, 170, 210, 0.08) 0%, transparent 50%);
+    }
+
+    .cover-tag {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(7, 7, 9, 0.72);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    /* Track Metadata & Quality Badges */
+    .track-info {
+      text-align: left;
+      padding: 0 8px;
+    }
+
+    .track-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .track-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+    }
+
+    .track-artist {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .audio-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .audio-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: var(--text-primary);
+    }
+
+    /* Progress Bar & Playback Controls */
+    .progress-block {
+      padding: 0 8px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      width: 42%;
+      height: 100%;
+      border-radius: 999px;
+      background: var(--text-primary);
+      transition: width 0.3s linear;
+    }
+
+    .progress-times {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .player-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      margin: 6px 0;
+    }
+
+    .ctrl-btn {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s var(--ease-apple), opacity 0.2s;
+    }
+
+    .ctrl-btn:hover {
+      opacity: 0.85;
+      transform: scale(1.06);
+    }
+
+    .ctrl-play {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: var(--text-primary);
+      color: #070709;
+      box-shadow: 0 8px 24px rgba(245, 245, 247, 0.2);
+    }
+
+    /* Music Flow & Synced Lyrics View inside Phone */
+    .lyrics-stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 14px;
+      padding: 12px 10px;
+      text-align: left;
+    }
+
+    .lyric-line {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: rgba(245, 245, 247, 0.28);
+      transform: scale(0.95);
+      transform-origin: left center;
+      transition: all 0.4s var(--ease-apple);
+    }
+
+    .lyric-line.active {
+      font-size: 1.32rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      transform: scale(1.02);
+      text-shadow: 0 4px 20px rgba(245, 245, 247, 0.18);
+    }
+
+    .flow-stage {
+      flex: 1;
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 65% 30%, rgba(245, 245, 247, 0.14), transparent 55%),
+        linear-gradient(165deg, #181922 0%, #0B0B0F 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: left;
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .flow-pill {
+      align-self: flex-start;
+      padding: 4px 10px;
+      border-radius: var(--radius-capsule);
+      background: rgba(20, 20, 22, 0.86);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    /* Floating Bottom Capsules (MiniPlayer + BottomBar in Apple Glass) */
+    .floating-capsules-stack {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .capsule-miniplayer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+      padding: 0 12px 0 8px;
+      border-radius: var(--radius-capsule);
+      background: var(--bg-capsule);
+      border: 0.8px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .mini-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mini-thumb {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #1B1B22;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mini-meta {
+      text-align: left;
+      line-height: 1.2;
+    }
+
+    .mini-title {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .mini-sub {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+    }
+
+    .capsule-bottombar {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      height: 54px;
+      padding: 0 10px;
+      border-radius: var(--radius-capsule);
+      background: var(--bg-capsule);
+      border: 0.8px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .nav-pill-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius-capsule);
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .nav-pill-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text-primary);
+    }
+
+    .showcase-caption {
+      margin-top: 18px;
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+
+    /* ==========================================================================
+       3. Bento Grid Section (4 Modular Cards, 28px Radius, #121216 Surface)
+       ========================================================================== */
+    .section {
+      padding: 88px 0;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 680px;
+      margin: 0 auto 56px;
+    }
+
+    .section-eyebrow {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--text-primary);
+      margin-bottom: 14px;
+    }
+
+    .section-desc {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      letter-spacing: -0.01em;
+    }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 20px;
+    }
+
+    .bento-card {
+      grid-column: span 6;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-bento);
+      padding: 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 24px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      transition: transform 0.45s var(--ease-apple), border-color 0.45s var(--ease-apple), background 0.45s var(--ease-apple);
+    }
+
+    .bento-card:hover {
+      transform: translateY(-4px);
+      background: var(--bg-card-hover);
+      border-color: var(--border-highlight);
+    }
+
+    .bento-icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-specular);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-primary);
+    }
+
+    .bento-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .bento-tag {
+      padding: 4px 11px;
+      border-radius: var(--radius-capsule);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .bento-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .bento-text {
+      font-size: 0.96rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    /* ==========================================================================
+       4. Open Source & Cryptographic Verification Banner
+       ========================================================================== */
+    .opensource-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-bento);
+      padding: 48px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .opensource-content {
+      max-width: 600px;
+    }
+
+    .spec-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .spec-pill {
+      padding: 6px 13px;
+      border-radius: 10px;
+      background: #070709;
+      border: 1px solid var(--border-subtle);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .spec-pill strong {
+      color: var(--text-primary);
+    }
+
+    /* ==========================================================================
+       5. Minimalist Footer
+       ========================================================================== */
+    .site-footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 48px 0 64px;
+      margin-top: 40px;
+    }
+
+    .footer-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .footer-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      color: var(--text-secondary);
+      transition: color 0.2s var(--ease-apple);
+    }
+
+    .footer-links a:hover {
+      color: var(--text-primary);
+    }
+
+    @media (max-width: 860px) {
+      .bento-card {
+        grid-column: span 12;
+        padding: 28px;
+      }
+      .navbar-links {
+        display: none;
+      }
+      .opensource-card {
+        padding: 32px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. Floating Capsule Navigation Bar -->
+  <header class="navbar-wrapper">
+    <nav class="navbar-capsule" aria-label="Navegación principal">
+      <a href="https://jetmusic.site" class="navbar-brand">
+        <span class="navbar-logo-box" aria-hidden="true">
+          <svg viewBox="0 0 512 512" fill="none">
+            <g transform="translate(256, 256) scale(235)">
+              <circle cx="0" cy="0" r="0.64" stroke="#F5F5F7" stroke-width="0.064"/>
+              <line x1="-0.44" y1="-0.22" x2="-0.44" y2="0.22" stroke="#F5F5F7" stroke-width="0.084" stroke-linecap="round"/>
+              <polygon points="-0.34,-0.38 0.44,-0.02 -0.14,0.04" fill="#F5F5F7" stroke="#F5F5F7" stroke-width="0.036" stroke-linejoin="round"/>
+              <polygon points="-0.14,0.11 0.44,0.02 -0.34,0.38" fill="#F5F5F7" stroke="#F5F5F7" stroke-width="0.030" stroke-linejoin="round"/>
+            </g>
+          </svg>
+        </span>
+        <span>Jet Music</span>
+      </a>
+
+      <ul class="navbar-links">
+        <li><a href="#features">Características</a></li>
+        <li><a href="#showcase">Interfaz</a></li>
+        <li><a href="#opensource">Código Abierto</a></li>
+      </ul>
+
+      <a id="nav-download-btn" href="https://github.com/sepuro/Jet-Music/releases/download/v1.7.0/Jet-Music-v1.7.0-release.apk" class="navbar-cta" download>
+        <span>Descargar APK</span>
+      </a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- 2. Minimalist Hero Section -->
+    <section class="hero-section container">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        <span id="release-badge-text">Jet Music v1.7.0 • Firma v2/v3 verificada</span>
+      </div>
+
+      <h1 class="hero-title">
+        Sonido puro.<br />
+        <span class="hero-title-muted">Diseño minimalista a 120Hz.</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        Reproductor de música de alto rendimiento para Android. Audio sin pérdidas, espacialización Dolby Atmos, letras sincronizadas en tiempo real y cápsulas flotantes en acabado Apple Glass.
+      </p>
+
+      <div class="hero-actions">
+        <a id="download-btn" href="https://github.com/sepuro/Jet-Music/releases/download/v1.7.0/Jet-Music-v1.7.0-release.apk" class="btn-primary" download>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span id="download-text">Descargar APK (v1.7.0)</span>
+        </a>
+
+        <a href="https://github.com/sepuro/Jet-Music" class="btn-secondary" target="_blank" rel="noopener noreferrer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
+          </svg>
+          <span>Ver en GitHub</span>
+        </a>
+      </div>
+
+      <div class="hero-meta">
+        <span>Android 8.0+ (ARM64 / ARMv7)</span>
+        <span>•</span>
+        <span class="hero-meta-pill">app.jetmusic.android</span>
+        <span>•</span>
+        <span id="apk-size-label">96 MB • Release R8</span>
+      </div>
+
+      <!-- Interactive Mobile Player Showcase -->
+      <div id="showcase" class="showcase-wrapper">
+        <div class="ambient-glow" aria-hidden="true"></div>
+
+        <div class="mode-switcher" role="tablist" aria-label="Modos de interfaz de Jet Music">
+          <button type="button" class="mode-tab active" data-view="player" role="tab" aria-selected="true">Carátula Reactiva</button>
+          <button type="button" class="mode-tab" data-view="lyrics" role="tab" aria-selected="false">Letras 120Hz</button>
+          <button type="button" class="mode-tab" data-view="flow" role="tab" aria-selected="false">Music Flow</button>
+        </div>
+
+        <div class="phone-frame" aria-label="Demostración interactiva de Jet Music">
+          <div class="phone-canvas-bg" aria-hidden="true"></div>
+
+          <div class="phone-statusbar">
+            <span>9:41</span>
+            <span class="phone-camera-cutout"></span>
+            <span>5G • 120Hz</span>
+          </div>
+
+          <div class="phone-body">
+            <!-- View 1: Apple Music Reactive Cover Player -->
+            <div id="view-player" class="phone-view active">
+              <div class="cover-stage">
+                <div id="reactive-cover" class="reactive-cover" title="Pulsa para probar la física de resorte Apple Music">
+                  <div class="cover-art-rings"></div>
+                  <svg width="88" height="88" viewBox="0 0 512 512" fill="none" aria-hidden="true">
+                    <g transform="translate(256, 256) scale(220)">
+                      <circle cx="0" cy="0" r="0.64" stroke="#F5F5F7" stroke-width="0.064"/>
+                      <line x1="-0.44" y1="-0.22" x2="-0.44" y2="0.22" stroke="#F5F5F7" stroke-width="0.084" stroke-linecap="round"/>
+                      <polygon points="-0.34,-0.38 0.44,-0.02 -0.14,0.04" fill="#F5F5F7" stroke="#F5F5F7" stroke-width="0.036" stroke-linejoin="round"/>
+                      <polygon points="-0.14,0.11 0.44,0.02 -0.34,0.38" fill="#F5F5F7" stroke="#F5F5F7" stroke-width="0.030" stroke-linejoin="round"/>
+                    </g>
+                  </svg>
+                  <span id="cover-state-tag" class="cover-tag">Escala 1.0× • Activo</span>
+                </div>
+              </div>
+
+              <div class="track-info">
+                <div class="track-header-row">
+                  <div>
+                    <div class="track-title">Midnight Horizon</div>
+                    <div class="track-artist">Jet Music Studio • Spatial Mix</div>
+                  </div>
+                </div>
+                <div class="audio-badges">
+                  <span class="audio-badge">FLAC 24-bit / 192kHz</span>
+                  <span class="audio-badge">Dolby Atmos</span>
+                  <span class="audio-badge">Bit-Perfect</span>
+                </div>
+              </div>
+
+              <div class="progress-block">
+                <div class="progress-track">
+                  <div id="demo-progress" class="progress-fill"></div>
+                </div>
+                <div class="progress-times">
+                  <span id="demo-time-cur">1:28</span>
+                  <span>3:42</span>
+                </div>
+              </div>
+
+              <div class="player-controls">
+                <button type="button" class="ctrl-btn" aria-label="Anterior">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+                </button>
+                <button type="button" id="demo-play-btn" class="ctrl-btn ctrl-play" aria-label="Reproducir o Pausar">
+                  <svg id="icon-pause" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                  <svg id="icon-play" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+                <button type="button" class="ctrl-btn" aria-label="Siguiente">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- View 2: Synced Lyrics 120Hz -->
+            <div id="view-lyrics" class="phone-view">
+              <div class="lyrics-stage">
+                <div class="lyric-line">Siente el pulso en el silencio</div>
+                <div class="lyric-line active">Cada nota fluye sin fricción a 120 cuadros</div>
+                <div class="lyric-line">Cristal líquido y contraste puro</div>
+                <div class="lyric-line">Sin anuncios, sin interrupciones</div>
+              </div>
+              <div class="audio-badges" style="padding: 0 10px 8px;">
+                <span class="audio-badge">Word-by-Word Sync</span>
+                <span class="audio-badge">SF Pro Display</span>
+              </div>
+            </div>
+
+            <!-- View 3: Music Flow Video Canvas -->
+            <div id="view-flow" class="phone-view">
+              <div class="flow-stage">
+                <span class="flow-pill">Music Flow • Video Canvas</span>
+                <div>
+                  <div class="track-title" style="font-size: 1.25rem;">Inmersión Visual Continua</div>
+                  <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 6px;">
+                    Transición instantánea entre audio puro y lienzos de video sincronizados con ExoPlayer / Media3 sin recomposiciones.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Floating Bottom Capsules (Always visible Apple Glass Architecture) -->
+            <div class="floating-capsules-stack">
+              <div class="capsule-miniplayer">
+                <div class="mini-left">
+                  <div class="mini-thumb">
+                    <svg width="18" height="18" viewBox="0 0 512 512" fill="none">
+                      <g transform="translate(256, 256) scale(235)">
+                        <circle cx="0" cy="0" r="0.64" stroke="#F5F5F7" stroke-width="0.07"/>
+                        <polygon points="-0.34,-0.38 0.44,-0.02 -0.14,0.04" fill="#F5F5F7"/>
+                        <polygon points="-0.14,0.11 0.44,0.02 -0.34,0.38" fill="#F5F5F7"/>
+                      </g>
+                    </svg>
+                  </div>
+                  <div class="mini-meta">
+                    <div class="mini-title">Midnight Horizon</div>
+                    <div class="mini-sub">Cápsula Flotante • 0 Jank</div>
+                  </div>
+                </div>
+                <span style="font-size: 0.68rem; font-weight: 600; color: var(--text-secondary);">Lossless</span>
+              </div>
+
+              <div class="capsule-bottombar">
+                <span class="nav-pill-item active">Inicio</span>
+                <span class="nav-pill-item">Explorar</span>
+                <span class="nav-pill-item">Biblioteca</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="showcase-caption">
+          Interactúa con el botón de reproducción o cambia de pestaña para explorar la carátula reactiva, letras sincronizadas y cápsulas Apple Glass.
+        </p>
+      </div>
+    </section>
+
+    <!-- 3. Bento Grid of Features (4 Clean Cards) -->
+    <section id="features" class="section container">
+      <div class="section-header">
+        <div class="section-eyebrow">Ingeniería de Audio e Interfaz</div>
+        <h2 class="section-title">Cuatro pilares de precisión.</h2>
+        <p class="section-desc">
+          Diseñado desde cero sobre Jetpack Compose y Media3 para ofrecer fidelidad acústica de estudio y fluidez gráfica absoluta.
+        </p>
+      </div>
+
+      <div class="bento-grid">
+        <!-- Card 1: Lossless & Dolby Atmos -->
+        <article class="bento-card">
+          <div>
+            <div class="bento-icon-wrap" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="bento-title">Audio sin pérdidas &amp; Dolby Atmos</h3>
+            <p class="bento-text">
+              Streaming FLAC y ALAC sin compresión hasta 24-bit/192kHz, salida Bit-Perfect directa por USB DAC, telemetría de códecs Bluetooth Hi-Res (LDAC, aptX HD) y motor DSP nativo de 10 bandas con espacialización Dolby Atmos.
+            </p>
+          </div>
+          <div class="bento-tag-list">
+            <span class="bento-tag">24-bit / 192kHz FLAC</span>
+            <span class="bento-tag">Dolby Atmos DSP</span>
+            <span class="bento-tag">Bit-Perfect USB DAC</span>
+          </div>
+        </article>
+
+        <!-- Card 2: Music Flow & Synced Lyrics -->
+        <article class="bento-card">
+          <div>
+            <div class="bento-icon-wrap" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="bento-title">Music Flow &amp; Letras Sincronizadas en tiempo real</h3>
+            <p class="bento-text">
+              Alterna sin cortes entre audio puro, lienzos visuales inmersivos en modo <em>Music Flow</em> y letras sincronizadas sílaba por sílaba con jerarquía tipográfica estilo Apple Music y traducción asistida.
+            </p>
+          </div>
+          <div class="bento-tag-list">
+            <span class="bento-tag">Music Flow Canvas</span>
+            <span class="bento-tag">Word-by-Word Lyrics</span>
+            <span class="bento-tag">Cero Latencia</span>
+          </div>
+        </article>
+
+        <!-- Card 3: 120Hz Minimalist Interface -->
+        <article class="bento-card">
+          <div>
+            <div class="bento-icon-wrap" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="bento-title">Interfaz Minimalista a 120Hz (Light &amp; Dark)</h3>
+            <p class="bento-text">
+              Lectura diferida de estado en ExoPlayer para garantizar 0 recomposiciones durante el scroll, carátula reactiva con físicas de resorte y cápsulas flotantes biseladas (<em>Apple Glass</em>) con gradientes pre-cacheados en GPU.
+            </p>
+          </div>
+          <div class="bento-tag-list">
+            <span class="bento-tag">120 FPS Constantes</span>
+            <span class="bento-tag">Cápsulas Apple Glass</span>
+            <span class="bento-tag">Light &amp; Dark Puro</span>
+          </div>
+        </article>
+
+        <!-- Card 4: Integrated OTA & 100% Open Source -->
+        <article class="bento-card">
+          <div>
+            <div class="bento-icon-wrap" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="bento-title">Actualizaciones OTA integradas y 100% Open Source sin anuncios</h3>
+            <p class="bento-text">
+              Sistema OTA nativo conectado a GitHub Releases con comparador semántico e instalación directa, compilación 100% Release optimizada con R8 y firmada criptográficamente con esquema v2/v3. Libre de anuncios y rastreadores.
+            </p>
+          </div>
+          <div class="bento-tag-list">
+            <span class="bento-tag">OTA Automático</span>
+            <span class="bento-tag">Firma v2 / v3</span>
+            <span class="bento-tag">GPL-3.0 FOSS</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 4. Open Source & Release Verification Section -->
+    <section id="opensource" class="section container" style="padding-top: 20px;">
+      <div class="opensource-card">
+        <div class="opensource-content">
+          <div class="section-eyebrow">Transparencia y Seguridad</div>
+          <h2 class="section-title" style="font-size: clamp(1.65rem, 3vw, 2.25rem);">Compilado y verificado en GitHub Actions.</h2>
+          <p class="bento-text">
+            Cada versión de Jet Music se compila automáticamente desde el código fuente público con optimización R8 Full Mode y se verifica con <code>apksigner</code> (esquemas v2 y v3) y <code>aapt2</code> antes de publicarse.
+          </p>
+          <div class="spec-pills">
+            <span class="spec-pill">Paquete: <strong>app.jetmusic.android</strong></span>
+            <span class="spec-pill">Versión: <strong id="spec-version">v1.7.0 (170)</strong></span>
+            <span class="spec-pill">ABI: <strong>arm64-v8a / armeabi-v7a</strong></span>
+          </div>
+        </div>
+
+        <div>
+          <a href="https://github.com/sepuro/Jet-Music/releases/latest" class="btn-secondary" target="_blank" rel="noopener noreferrer">
+            <span>Ver Notas de la Versión</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 5. Minimalist Footer -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <span class="navbar-logo-box" aria-hidden="true">
+          <svg viewBox="0 0 512 512" fill="none">
+            <g transform="translate(256, 256) scale(235)">
+              <circle cx="0" cy="0" r="0.64" stroke="#F5F5F7" stroke-width="0.064"/>
+              <line x1="-0.44" y1="-0.22" x2="-0.44" y2="0.22" stroke="#F5F5F7" stroke-width="0.084" stroke-linecap="round"/>
+              <polygon points="-0.34,-0.38 0.44,-0.02 -0.14,0.04" fill="#F5F5F7" stroke="#F5F5F7" stroke-width="0.036" stroke-linejoin="round"/>
+              <polygon points="-0.14,0.11 0.44,0.02 -0.34,0.38" fill="#F5F5F7" stroke="#F5F5F7" stroke-width="0.030" stroke-linejoin="round"/>
+            </g>
+          </svg>
+        </span>
+        <span>Jet Music</span>
+      </div>
+
+      <div class="footer-links">
+        <a href="https://jetmusic.site">jetmusic.site</a>
+        <a href="https://github.com/sepuro/Jet-Music" target="_blank" rel="noopener noreferrer">Repositorio GitHub</a>
+        <a href="https://github.com/sepuro/Jet-Music/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+        <a href="https://github.com/sepuro/Jet-Music/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Licencia GPL-3.0</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Dynamic GitHub Releases Connector & Interactive Player Showcase Logic -->
+  <script>
+    (() => {
+      const REPO = "sepuro/Jet-Music";
+      const FALLBACK_VERSION = "v1.7.0";
+      const FALLBACK_URL = `https://github.com/${REPO}/releases/download/${FALLBACK_VERSION}/Jet-Music-${FALLBACK_VERSION}-release.apk`;
+
+      const downloadBtn = document.getElementById("download-btn");
+      const navDownloadBtn = document.getElementById("nav-download-btn");
+      const downloadText = document.getElementById("download-text");
+      const releaseBadgeText = document.getElementById("release-badge-text");
+      const specVersion = document.getElementById("spec-version");
+      const apkSizeLabel = document.getElementById("apk-size-label");
+
+      // Dynamic fetch from GitHub Releases API (/releases/latest)
+      fetch(`https://api.github.com/repos/${REPO}/releases/latest`)
+        .then((res) => {
+          if (!res.ok) throw new Error("GitHub API status " + res.status);
+          return res.json();
+        })
+        .then((data) => {
+          const version = data.tag_name || FALLBACK_VERSION;
+          const assets = Array.isArray(data.assets) ? data.assets : [];
+          const releaseApk =
+            assets.find((a) => a.name && a.name.endsWith("-release.apk")) ||
+            assets.find((a) => a.name && a.name.endsWith(".apk"));
+          const apkUrl = releaseApk ? releaseApk.browser_download_url : FALLBACK_URL;
+
+          if (downloadBtn) {
+            downloadBtn.href = apkUrl;
+            downloadBtn.setAttribute("download", releaseApk ? releaseApk.name : `Jet-Music-${version}-release.apk`);
+          }
+          if (navDownloadBtn) {
+            navDownloadBtn.href = apkUrl;
+            navDownloadBtn.setAttribute("download", releaseApk ? releaseApk.name : `Jet-Music-${version}-release.apk`);
+          }
+          if (downloadText) {
+            downloadText.textContent = `Descargar APK (${version})`;
+          }
+          if (releaseBadgeText) {
+            releaseBadgeText.textContent = `Jet Music ${version} • Firma v2/v3 verificada`;
+          }
+          if (specVersion) {
+            specVersion.textContent = version;
+          }
+          if (releaseApk && releaseApk.size && apkSizeLabel) {
+            const mb = Math.round(releaseApk.size / (1024 * 1024));
+            apkSizeLabel.textContent = `${mb} MB • Release R8`;
+          }
+        })
+        .catch(() => {
+          // Deterministic v1.7.0 fallback stays active
+        });
+
+      // Interactive Mode Switcher (Carátula Reactiva / Letras 120Hz / Music Flow)
+      const tabs = document.querySelectorAll(".mode-tab");
+      const views = {
+        player: document.getElementById("view-player"),
+        lyrics: document.getElementById("view-lyrics"),
+        flow: document.getElementById("view-flow")
+      };
+
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          const target = tab.getAttribute("data-view");
+          tabs.forEach((t) => {
+            t.classList.toggle("active", t === tab);
+            t.setAttribute("aria-selected", t === tab ? "true" : "false");
+          });
+          Object.keys(views).forEach((key) => {
+            if (views[key]) {
+              views[key].classList.toggle("active", key === target);
+            }
+          });
+        });
+      });
+
+      // Interactive Apple Music Reactive Cover Physics (Scale 1.0 Playing <-> 0.85 Paused)
+      const playBtn = document.getElementById("demo-play-btn");
+      const reactiveCover = document.getElementById("reactive-cover");
+      const coverStateTag = document.getElementById("cover-state-tag");
+      const iconPause = document.getElementById("icon-pause");
+      const iconPlay = document.getElementById("icon-play");
+      let isPlaying = true;
+
+      function togglePlayState() {
+        isPlaying = !isPlaying;
+        if (reactiveCover) {
+          reactiveCover.classList.toggle("paused", !isPlaying);
+        }
+        if (coverStateTag) {
+          coverStateTag.textContent = isPlaying ? "Escala 1.0× • Activo" : "Escala 0.85× • En pausa";
+        }
+        if (iconPause && iconPlay) {
+          iconPause.style.display = isPlaying ? "block" : "none";
+          iconPlay.style.display = isPlaying ? "none" : "block";
+        }
+      }
+
+      if (playBtn) playBtn.addEventListener("click", togglePlayState);
+      if (reactiveCover) reactiveCover.addEventListener("click", togglePlayState);
+    })();
+  </script>
+</body>
+</html>
