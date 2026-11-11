@@ -165,28 +165,39 @@ private data class PolygonCookieShape(val sides: Int, val indent: Float) : Shape
 
 @Stable
 class ProgressState(
-  private val positionState: MutableLongState,
-  private val durationState: MutableLongState
+  private val positionProvider: () -> Long,
+  private val durationProvider: () -> Long,
 ) {
+  constructor(
+    positionState: MutableLongState,
+    durationState: MutableLongState,
+  ) : this(
+    positionProvider = { positionState.longValue },
+    durationProvider = { durationState.longValue },
+  )
+
   val progress: Float
     get() {
-      val duration = durationState.longValue
-      return if (duration > 0) (positionState.longValue.toFloat() / duration).coerceIn(0f, 1f)
+      val duration = durationProvider()
+      return if (duration > 0) (positionProvider().toFloat() / duration).coerceIn(0f, 1f)
       else 0f
     }
 }
 
 @Composable
 fun MiniPlayer(
-  positionState: MutableLongState,
-  durationState: MutableLongState,
+  positionProvider: () -> Long,
+  durationProvider: () -> Long,
   modifier: Modifier = Modifier,
   onClick: () -> Unit = {}
 ) {
   val useNewMiniPlayerDesign by rememberPreference(UseNewMiniPlayerDesignKey, true)
 
   val (useFloatingNavBar) = rememberPreference(UseFloatingNavBarKey, defaultValue = false)
-  val progressState = remember { ProgressState(positionState, durationState) }
+  val progressState =
+    remember(positionProvider, durationProvider) {
+      ProgressState(positionProvider, durationProvider)
+    }
 
   if (useFloatingNavBar) {
     val miniPlayerBackground by
@@ -1013,7 +1024,7 @@ private fun FavoriteButton(
 ) {
   val database = LocalDatabase.current
   val playerConnection = LocalPlayerConnection.current ?: return
-  val librarySong by database.song(songId).collectAsState(initial = null)
+  val librarySong by remember(database, songId) { database.song(songId) }.collectAsState(initial = null)
   val isLiked = librarySong?.song?.liked == true
 
   Box(
@@ -1060,7 +1071,7 @@ private fun MiniPlayerColorExtractor(
           val request =
             ImageRequest.Builder(context)
               .data(currentMetadata.thumbnailUrl)
-              .size(100, 100)
+              .size(64, 64)
               .allowHardware(false)
               .build()
 
@@ -1070,24 +1081,26 @@ private fun MiniPlayerColorExtractor(
             if (bitmap != null) {
               val palette =
                 withContext(Dispatchers.Default) {
-                  Palette.from(bitmap).maximumColorCount(8).resizeBitmapArea(100 * 100).generate()
+                  Palette.from(bitmap).maximumColorCount(8).resizeBitmapArea(64 * 64).generate()
                 }
               val extractedColors =
-                if (miniPlayerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
-                  listOfNotNull(
-                      palette.getVibrantColor(fallbackColor).let { Color(it) },
-                      palette.getLightVibrantColor(fallbackColor).let { Color(it) },
-                      palette.getDarkVibrantColor(fallbackColor).let { Color(it) },
-                      palette.getMutedColor(fallbackColor).let { Color(it) },
-                      palette.getLightMutedColor(fallbackColor).let { Color(it) },
-                      palette.getDarkMutedColor(fallbackColor).let { Color(it) }
+                withContext(Dispatchers.Default) {
+                  if (miniPlayerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
+                    listOfNotNull(
+                        palette.getVibrantColor(fallbackColor).let { Color(it) },
+                        palette.getLightVibrantColor(fallbackColor).let { Color(it) },
+                        palette.getDarkVibrantColor(fallbackColor).let { Color(it) },
+                        palette.getMutedColor(fallbackColor).let { Color(it) },
+                        palette.getLightMutedColor(fallbackColor).let { Color(it) },
+                        palette.getDarkMutedColor(fallbackColor).let { Color(it) }
+                      )
+                      .distinct()
+                  } else {
+                    PlayerColorExtractor.extractGradientColors(
+                      palette = palette,
+                      fallbackColor = fallbackColor
                     )
-                    .distinct()
-                } else {
-                  PlayerColorExtractor.extractGradientColors(
-                    palette = palette,
-                    fallbackColor = fallbackColor
-                  )
+                  }
                 }
               withContext(Dispatchers.Main) { onGradientColorsChange(extractedColors) }
             }
@@ -1116,7 +1129,7 @@ private fun MiniPlayerBackgroundLayer(
             ImageRequest.Builder(context)
               .data(mediaMetadata?.thumbnailUrl)
               .size(128, 128)
-              .allowHardware(false)
+              .allowHardware(true)
               .build(),
           contentDescription = null,
           contentScale = ContentScale.Crop,
@@ -1129,9 +1142,14 @@ private fun MiniPlayerBackgroundLayer(
       if (gradientColors.isNotEmpty()) {
         Box(
           modifier =
-            Modifier.fillMaxSize()
-              .background(Brush.verticalGradient(gradientColors))
-              .background(Color.Black.copy(alpha = 0.2f))
+            Modifier.fillMaxSize().drawWithCache {
+              val brush = Brush.verticalGradient(gradientColors)
+              val overlayColor = Color.Black.copy(alpha = 0.2f)
+              onDrawBehind {
+                drawRect(brush)
+                drawRect(overlayColor)
+              }
+            }
         )
       }
     }
@@ -1153,49 +1171,52 @@ private fun MiniPlayerBackgroundLayer(
         val colors = gradientColors
         Box(
           modifier =
-            Modifier.fillMaxSize().drawBehind {
-              val p = progress.value
+            Modifier.fillMaxSize().drawWithCache {
               val width = size.width
               val height = size.height
+              val baseColor = Color(0xFF050505)
 
-              fun rotatedColorAt(index: Int): Color {
-                val size = colors.size
-                val idx = index.toFloat() + p * size
-                val a = kotlin.math.floor(idx).toInt() % size
-                val b = (a + 1) % size
+              fun rotatedColorAt(index: Int, p: Float): Color {
+                val colorCount = colors.size
+                val idx = index.toFloat() + p * colorCount
+                val a = kotlin.math.floor(idx).toInt() % colorCount
+                val b = (a + 1) % colorCount
                 val frac = idx - kotlin.math.floor(idx)
                 return lerp(colors[a], colors[b], frac)
               }
 
-              fun oscillate(min: Float, max: Float, phase: Float): Float {
+              fun oscillate(min: Float, max: Float, phase: Float, p: Float): Float {
                 val v = kotlin.math.sin(2f * kotlin.math.PI.toFloat() * (p + phase))
                 return min + (max - min) * ((v + 1f) * 0.5f)
               }
 
-              val c1 = rotatedColorAt(0)
-              val c2 = rotatedColorAt(1)
+              onDrawBehind {
+                val p = progress.value
+                val c1 = rotatedColorAt(0, p)
+                val c2 = rotatedColorAt(1, p)
 
-              val o1x = oscillate(0.0f, 1.0f, 0.0f)
-              val o1y = oscillate(0.0f, 0.5f, 0.1f)
-              val o2x = oscillate(1.0f, 0.0f, 0.2f)
-              val o2y = oscillate(0.5f, 1.0f, 0.3f)
+                val o1x = oscillate(0.0f, 1.0f, 0.0f, p)
+                val o1y = oscillate(0.0f, 0.5f, 0.1f, p)
+                val o2x = oscillate(1.0f, 0.0f, 0.2f, p)
+                val o2y = oscillate(0.5f, 1.0f, 0.3f, p)
 
-              val b1 =
-                Brush.radialGradient(
-                  colors = listOf(c1.copy(alpha = 0.8f), Color.Transparent),
-                  center = Offset(width * o1x, height * o1y),
-                  radius = width * 1.2f
-                )
-              val b2 =
-                Brush.radialGradient(
-                  colors = listOf(c2.copy(alpha = 0.7f), Color.Transparent),
-                  center = Offset(width * o2x, height * o2y),
-                  radius = width * 1.0f
-                )
+                val b1 =
+                  Brush.radialGradient(
+                    colors = listOf(c1.copy(alpha = 0.8f), Color.Transparent),
+                    center = Offset(width * o1x, height * o1y),
+                    radius = width * 1.2f
+                  )
+                val b2 =
+                  Brush.radialGradient(
+                    colors = listOf(c2.copy(alpha = 0.7f), Color.Transparent),
+                    center = Offset(width * o2x, height * o2y),
+                    radius = width * 1.0f
+                  )
 
-              drawRect(Color(0xFF050505))
-              drawRect(b1)
-              drawRect(b2)
+                drawRect(baseColor)
+                drawRect(b1)
+                drawRect(b2)
+              }
             }
         )
       }
@@ -1227,7 +1248,7 @@ private fun MiniPlayerBackgroundLayer(
             ImageRequest.Builder(context)
               .data(mediaMetadata?.thumbnailUrl)
               .size(128, 128)
-              .allowHardware(false)
+              .allowHardware(true)
               .build(),
           contentDescription = null,
           contentScale = ContentScale.Crop,
@@ -1241,9 +1262,14 @@ private fun MiniPlayerBackgroundLayer(
       if (gradientColors.isNotEmpty()) {
         Box(
           modifier =
-            Modifier.fillMaxSize()
-              .background(Brush.verticalGradient(gradientColors))
-              .background(Color.Black.copy(alpha = 0.2f))
+            Modifier.fillMaxSize().drawWithCache {
+              val brush = Brush.verticalGradient(gradientColors)
+              val overlayColor = Color.Black.copy(alpha = 0.2f)
+              onDrawBehind {
+                drawRect(brush)
+                drawRect(overlayColor)
+              }
+            }
         )
       }
     }

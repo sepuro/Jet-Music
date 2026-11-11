@@ -187,6 +187,11 @@ android {
     buildConfig = true
   }
 
+  composeCompiler {
+    enableStrongSkippingMode = true
+    stabilityConfigurationFile = layout.projectDirectory.file("stability_config.txt")
+  }
+
   dependenciesInfo {
     includeInApk = false
     includeInBundle = false

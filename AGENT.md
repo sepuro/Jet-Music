@@ -369,3 +369,23 @@ Optional full-screen vertical swipe discovery (`echo.music.iad1tya.musicflow`, r
 ## Ambient Mode Canvas
 
 Ambient Mode keeps the existing album-art square and layers muted Canvas artwork inside that same clipped square. The normal album art remains underneath as the fallback; Canvas follows playback state and is non-interactive.
+
+## Performance & Rendering Guidelines
+
+- **Level 1 — ExoPlayer State Isolation (`Player.kt`, `MiniPlayer.kt`)**:
+  - Never read playback progress (`positionState.longValue` / `durationState.longValue`) in the root composable or `BottomSheetPlayer`.
+  - Pass playback progress to `MiniPlayer` and child components via provider lambdas (`positionProvider: () -> Long`, `durationProvider: () -> Long`) and read `progressState.progress` exclusively inside the draw phase (`Modifier.drawWithContent`) or inside `PlayerStateBoundary`.
+- **Level 2 — Liquid Glass & GPU Optimization (`GlassEffect.kt`, `MainActivity.kt`, `BottomSheet.kt`, `Player.kt`)**:
+  - `Modifier.liquidGlass` uses an optimized translucent surface (`surfaceTintColor.copy(alpha = 0.85f)` + cached `1.dp` linear-gradient border + `CompositingStrategy.ModulateAlpha` inside `Modifier.drawWithCache`) instead of per-frame `RenderEffect` backdrop re-sampling.
+  - Pre-calculate and cache gradients (`Brush.verticalGradient`, `Brush.radialGradient`, `Brush.linearGradient`) inside `Modifier.drawWithCache` (`onDrawBehind` / `onDrawWithContent`).
+  - Gate `BottomSheet` `background` composition on `!state.isCollapsed && !state.isDismissed` and call `exoPlayer.clearVideoSurface()` on dispose in `BackgroundVideoView` so video `TextureView`/`SurfaceView` instances are completely destroyed when collapsed into `MiniPlayer`.
+- **Level 3 — Off-Main-Thread Palette & Hardware Bitmaps (`Theme.kt`, `Player.kt`, `MiniPlayer.kt`)**:
+  - Downscale bitmaps to `64x64` (`resizeBitmapArea(64 * 64)`) and run `Palette.from(bitmap)` + color extraction inside `withContext(Dispatchers.Default)`.
+  - Keep `allowHardware(true)` enabled on all UI `AsyncImage` requests; use `allowHardware(false)` with `.size(64, 64)` exclusively on offscreen `ImageRequest`s used for `Palette`.
+- **Level 4 — Coil Image Pipeline (`App.kt`, `Items.kt`, `HomeScreen.kt`)**:
+  - Global `ImageLoader` uses a 25% RAM `MemoryCache`, 250MB `DiskCache`, `allowHardware(true)`, and `crossfade(false)` by default.
+  - List/grid thumbnails specify fixed dimensions with `Precision.INEXACT` and omit `crossfade(true)` to avoid decoding oversized bitmaps or running alpha transitions during fast scroll.
+- **Level 5 — Compose Compiler Stability & Strong Skipping (`app/build.gradle.kts`, `app/stability_config.txt`)**:
+  - Strong Skipping Mode (`enableStrongSkippingMode = true`) and `app/stability_config.txt` mark standard collections (`List`, `Set`, `Map`), `Flow`s, `java.time.*`, and domain/DB models as stable, alongside `@Immutable` / `@Stable` annotations on UI state and model classes.
+- **Level 6 — Release Optimization & R8 Full Mode (`gradle.properties`, `app/build.gradle.kts`, `app/proguard-rules.pro`)**:
+  - Release builds enable `isMinifyEnabled = true`, `isShrinkResources = true`, `android.enableR8.fullMode=true`, and `-Xmx4096m` with comprehensive ProGuard `-keep` rules for Ktor, Retrofit, Gson, Kotlinx Serialization, InnerTube, and Room entities.

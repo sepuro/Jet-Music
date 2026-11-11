@@ -184,3 +184,24 @@
 -keepclasseswithmembers class echo.music.iad1tya.listentogether.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+## R8 Full Mode - Keep Network, Innertube, Room Entities & Serialization Models
+-keepattributes Signature, InnerClasses, EnclosingMethod, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations, AnnotationDefault
+-keep @androidx.annotation.Keep class * { *; }
+-keep @kotlinx.serialization.Serializable class * { *; }
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-keep class com.music.innertube.models.** { *; }
+-keep class com.music.innertube.pages.** { *; }
+-keep class echo.music.iad1tya.db.entities.** { *; }
+-keep class echo.music.iad1tya.models.** { *; }
+-keep class com.music.echo.spotify.** { *; }
+-keep class com.music.lrclib.** { *; }
+-keep class com.music.kugou.** { *; }
+-keep class com.music.betterlyrics.** { *; }
+-keep class com.music.simpmusic.** { *; }
+-dontwarn retrofit2.**
+-keepclasseswithmembers class * {
+    @retrofit2.http.* <methods>;
+}

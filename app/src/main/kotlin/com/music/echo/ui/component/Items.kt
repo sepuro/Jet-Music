@@ -300,15 +300,17 @@ fun GridItem(
   forceCrop: Boolean = false,
 ) {
   val gridHeight = currentGridThumbnailHeight()
+  val itemWidth = gridHeight * thumbnailRatio
+  val density = androidx.compose.ui.platform.LocalDensity.current
   Column(
     modifier =
       if (fillMaxWidth) {
         modifier.padding(12.dp).fillMaxWidth()
       } else {
-        modifier.padding(12.dp).width(gridHeight * thumbnailRatio)
+        modifier.padding(12.dp).width(itemWidth)
       }
   ) {
-    BoxWithConstraints(
+    Box(
       contentAlignment = Alignment.Center,
       modifier =
         if (fillMaxWidth) {
@@ -318,7 +320,21 @@ fun GridItem(
           }
           .aspectRatio(thumbnailRatio)
     ) {
-      thumbnailContent()
+      val boxScope = this
+      val constraintsScope =
+        remember(boxScope, itemWidth, gridHeight, density) {
+          val maxW = with(density) { itemWidth.roundToPx() }
+          val maxH = with(density) { gridHeight.roundToPx() }
+          object : BoxWithConstraintsScope, BoxScope by boxScope {
+            override val constraints =
+              androidx.compose.ui.unit.Constraints(maxWidth = maxW, maxHeight = maxH)
+            override val minWidth = 0.dp
+            override val maxWidth = itemWidth
+            override val minHeight = 0.dp
+            override val maxHeight = gridHeight
+          }
+        }
+      constraintsScope.thumbnailContent()
     }
 
     Spacer(modifier = Modifier.height(6.dp))
@@ -446,7 +462,9 @@ fun SongListItem(
   }
 
   if (isSwipeable && swipeEnabled) {
-    SwipeToSongBox(mediaItem = song.toMediaItem(), modifier = Modifier.fillMaxWidth()) { content() }
+    SwipeToSongBox(mediaItemProvider = { song.toMediaItem() }, modifier = Modifier.fillMaxWidth()) {
+      content()
+    }
   } else {
     content()
   }
@@ -546,6 +564,7 @@ fun ArtistListItem(
           ImageRequest.Builder(LocalContext.current)
             .data(artist.artist.thumbnailUrl?.resize(544, 544))
             .size(144, 144)
+            .precision(coil3.size.Precision.INEXACT)
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -582,6 +601,7 @@ fun ArtistGridItem(
           ImageRequest.Builder(LocalContext.current)
             .data(artist.artist.thumbnailUrl?.resize(544, 544))
             .size(360, 360)
+            .precision(coil3.size.Precision.INEXACT)
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1024,14 +1044,18 @@ fun YouTubeListItem(
   trailingContent: @Composable RowScope.() -> Unit = {},
   badges: @Composable RowScope.() -> Unit = {
     val database = LocalDatabase.current
-    val song by
-      produceState<Song?>(initialValue = null, item.id) {
-        if (item is SongItem) value = database.song(item.id).firstOrNull()
-      }
-    val album by
-      produceState<Album?>(initialValue = null, item.id) {
-        if (item is AlbumItem) value = database.album(item.id).firstOrNull()
-      }
+    val song =
+      if (item is SongItem) {
+        produceState<Song?>(initialValue = null, item.id) {
+          value = withContext(Dispatchers.IO) { database.song(item.id).firstOrNull() }
+        }.value
+      } else null
+    val album =
+      if (item is AlbumItem) {
+        produceState<Album?>(initialValue = null, item.id) {
+          value = withContext(Dispatchers.IO) { database.album(item.id).firstOrNull() }
+        }.value
+      } else null
 
     if (
       (item is SongItem && song?.song?.liked == true) ||
@@ -1128,7 +1152,7 @@ fun YouTubeListItem(
 
   if (item is SongItem && isSwipeable && swipeEnabled) {
     SwipeToSongBox(
-      mediaItem = item.copy(thumbnail = item.thumbnail.resize(544, 544)).toMediaItem(),
+      mediaItemProvider = { item.copy(thumbnail = item.thumbnail.resize(544, 544)).toMediaItem() },
       modifier = Modifier.fillMaxWidth()
     ) {
       content()
@@ -1145,14 +1169,18 @@ fun YouTubeGridItem(
   coroutineScope: CoroutineScope? = null,
   badges: @Composable RowScope.() -> Unit = {
     val database = LocalDatabase.current
-    val song by
-      produceState<Song?>(initialValue = null, item.id) {
-        if (item is SongItem) value = database.song(item.id).firstOrNull()
-      }
-    val album by
-      produceState<Album?>(initialValue = null, item.id) {
-        if (item is AlbumItem) value = database.album(item.id).firstOrNull()
-      }
+    val song =
+      if (item is SongItem) {
+        produceState<Song?>(initialValue = null, item.id) {
+          value = withContext(Dispatchers.IO) { database.song(item.id).firstOrNull() }
+        }.value
+      } else null
+    val album =
+      if (item is AlbumItem) {
+        produceState<Album?>(initialValue = null, item.id) {
+          value = withContext(Dispatchers.IO) { database.album(item.id).firstOrNull() }
+        }.value
+      } else null
 
     if (
       item is SongItem && song?.song?.liked == true ||
@@ -1371,6 +1399,7 @@ fun ItemThumbnail(
           ImageRequest.Builder(LocalContext.current)
             .data(thumbnailUrl?.resize(544, 544))
             .size(360, 360)
+            .precision(coil3.size.Precision.INEXACT)
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1440,6 +1469,7 @@ fun LocalThumbnail(
         ImageRequest.Builder(LocalContext.current)
           .data(thumbnailUrl)
           .size(360, 360)
+          .precision(coil3.size.Precision.INEXACT)
           .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
           .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
           .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1537,6 +1567,7 @@ fun PlaylistThumbnail(
           ImageRequest.Builder(LocalContext.current)
             .data(thumbnails[0].resize(544, 544))
             .size(360, 360)
+            .precision(coil3.size.Precision.INEXACT)
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1556,6 +1587,7 @@ fun PlaylistThumbnail(
                 ImageRequest.Builder(LocalContext.current)
                   .data(thumbnails.getOrNull(index)?.resize(544, 544))
                   .size(180, 180)
+                  .precision(coil3.size.Precision.INEXACT)
                   .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                   .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                   .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1661,6 +1693,19 @@ fun SwipeToSongBox(
   mediaItem: MediaItem,
   content: @Composable BoxScope.() -> Unit
 ) {
+  SwipeToSongBox(
+    modifier = modifier,
+    mediaItemProvider = { mediaItem },
+    content = content
+  )
+}
+
+@Composable
+fun SwipeToSongBox(
+  modifier: Modifier = Modifier,
+  mediaItemProvider: () -> MediaItem,
+  content: @Composable BoxScope.() -> Unit
+) {
   val ctx = LocalContext.current
   val player = LocalPlayerConnection.current
   val scope = rememberCoroutineScope()
@@ -1681,12 +1726,12 @@ fun SwipeToSongBox(
           onDragStopped = {
             when {
               offset.floatValue >= threshold -> {
-                player?.playNext(listOf(mediaItem))
+                player?.playNext(listOf(mediaItemProvider()))
                 Toast.makeText(ctx, R.string.play_next, Toast.LENGTH_SHORT).show()
                 reset(offset, scope)
               }
               offset.floatValue <= -threshold -> {
-                player?.addToQueue(listOf(mediaItem))
+                player?.addToQueue(listOf(mediaItemProvider()))
                 Toast.makeText(ctx, R.string.add_to_queue, Toast.LENGTH_SHORT).show()
                 reset(offset, scope)
               }
@@ -1727,9 +1772,12 @@ fun SwipeToSongBox(
 
     Box(
       modifier =
-        Modifier.offset { IntOffset(offset.floatValue.roundToInt(), 0) }
+        Modifier.graphicsLayer { translationX = offset.floatValue }
           .fillMaxWidth()
-          .background(MaterialTheme.colorScheme.surface),
+          .then(
+            if (offset.floatValue != 0f) Modifier.background(MaterialTheme.colorScheme.surface)
+            else Modifier
+          ),
       content = content
     )
   }

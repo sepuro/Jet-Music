@@ -384,7 +384,10 @@ constructor(
     }
   }
 
-  fun getDownload(songId: String): Flow<Download?> = downloads.map { it[songId] }
+  private val downloadFlows = ConcurrentHashMap<String, Flow<Download?>>()
+
+  fun getDownload(songId: String): Flow<Download?> =
+    downloadFlows.getOrPut(songId) { downloads.map { it[songId] }.distinctUntilChanged() }
 
   fun release() {
     scope.cancel()

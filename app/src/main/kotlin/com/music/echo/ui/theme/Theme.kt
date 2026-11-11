@@ -159,7 +159,7 @@ fun echomusicTheme(
 
 fun Bitmap.extractThemeColor(): Color {
   val colorsToPopulation =
-    Palette.from(this).maximumColorCount(8).generate().swatches.associate {
+    Palette.from(this).maximumColorCount(8).resizeBitmapArea(64 * 64).generate().swatches.associate {
       it.rgb to it.population
     }
   val rankedColors = Score.score(colorsToPopulation)
@@ -168,7 +168,7 @@ fun Bitmap.extractThemeColor(): Color {
 
 fun Bitmap.extractGradientColors(): List<Color> {
   val extractedColors =
-    Palette.from(this).maximumColorCount(64).generate().swatches.associate {
+    Palette.from(this).maximumColorCount(16).resizeBitmapArea(64 * 64).generate().swatches.associate {
       it.rgb to it.population
     }
 

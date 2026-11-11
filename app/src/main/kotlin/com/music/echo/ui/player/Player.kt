@@ -444,7 +444,9 @@ fun BottomSheetPlayer(
     }
 
   val playbackState by playerConnection.playbackState.collectAsState()
-  val currentFormatEntity by database.format(mediaMetadata?.id).collectAsState(initial = null)
+  val currentFormatEntity by
+    remember(database, mediaMetadata?.id) { database.format(mediaMetadata?.id) }
+      .collectAsState(initial = null)
   val currentSong by playerConnection.currentSong.collectAsState(initial = null)
   val automix by playerConnection.service.automixItems.collectAsState()
   val repeatMode by playerConnection.repeatMode.collectAsState()
@@ -660,7 +662,7 @@ fun BottomSheetPlayer(
           val request =
             ImageRequest.Builder(context)
               .data(currentMetadata.thumbnailUrl)
-              .size(100, 100)
+              .size(64, 64)
               .allowHardware(false)
               .memoryCacheKey("gradient_${currentMetadata.id}")
               .build()
@@ -671,24 +673,26 @@ fun BottomSheetPlayer(
             if (bitmap != null) {
               val palette =
                 withContext(Dispatchers.Default) {
-                  Palette.from(bitmap).maximumColorCount(8).resizeBitmapArea(100 * 100).generate()
+                  Palette.from(bitmap).maximumColorCount(8).resizeBitmapArea(64 * 64).generate()
                 }
               val extractedColors =
-                if (playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
-                  listOfNotNull(
-                      palette.getVibrantColor(fallbackColor).let { Color(it) },
-                      palette.getLightVibrantColor(fallbackColor).let { Color(it) },
-                      palette.getDarkVibrantColor(fallbackColor).let { Color(it) },
-                      palette.getMutedColor(fallbackColor).let { Color(it) },
-                      palette.getLightMutedColor(fallbackColor).let { Color(it) },
-                      palette.getDarkMutedColor(fallbackColor).let { Color(it) }
+                withContext(Dispatchers.Default) {
+                  if (playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
+                    listOfNotNull(
+                        palette.getVibrantColor(fallbackColor).let { Color(it) },
+                        palette.getLightVibrantColor(fallbackColor).let { Color(it) },
+                        palette.getDarkVibrantColor(fallbackColor).let { Color(it) },
+                        palette.getMutedColor(fallbackColor).let { Color(it) },
+                        palette.getLightMutedColor(fallbackColor).let { Color(it) },
+                        palette.getDarkMutedColor(fallbackColor).let { Color(it) }
+                      )
+                      .distinct()
+                  } else {
+                    PlayerColorExtractor.extractGradientColors(
+                      palette = palette,
+                      fallbackColor = fallbackColor
                     )
-                    .distinct()
-                } else {
-                  PlayerColorExtractor.extractGradientColors(
-                    palette = palette,
-                    fallbackColor = fallbackColor
-                  )
+                  }
                 }
               gradientColorsCache[currentMetadata.id] = extractedColors
               withContext(Dispatchers.Main) { gradientColors = extractedColors }
@@ -1098,7 +1102,7 @@ fun BottomSheetPlayer(
                       ImageRequest.Builder(context)
                         .data(thumbnailUrl)
                         .size(100, 100)
-                        .allowHardware(false)
+                        .allowHardware(true)
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -1117,20 +1121,28 @@ fun BottomSheetPlayer(
             ) { colors ->
               if (colors.isNotEmpty()) {
                 val gradientColorStops =
-                  if (colors.size >= 3) {
-                    arrayOf(0.0f to colors[0], 0.5f to colors[1], 1.0f to colors[2])
-                  } else {
-                    arrayOf(
-                      0.0f to colors[0],
-                      0.6f to colors[0].copy(alpha = 0.7f),
-                      1.0f to Color.Black
-                    )
+                  remember(colors) {
+                    if (colors.size >= 3) {
+                      arrayOf(0.0f to colors[0], 0.5f to colors[1], 1.0f to colors[2])
+                    } else {
+                      arrayOf(
+                        0.0f to colors[0],
+                        0.6f to colors[0].copy(alpha = 0.7f),
+                        1.0f to Color.Black
+                      )
+                    }
                   }
                 Box(
                   Modifier.fillMaxSize()
                     .graphicsLayer { alpha = backgroundAlphaProvider() }
-                    .background(Brush.verticalGradient(colorStops = gradientColorStops))
-                    .background(Color.Black.copy(alpha = 0.2f))
+                    .drawWithCache {
+                      val gradientBrush = Brush.verticalGradient(colorStops = gradientColorStops)
+                      val overlayColor = Color.Black.copy(alpha = 0.2f)
+                      onDrawBehind {
+                        drawRect(gradientBrush)
+                        drawRect(overlayColor)
+                      }
+                    }
                 )
               }
             }
@@ -1144,7 +1156,7 @@ fun BottomSheetPlayer(
               if (colors.isNotEmpty()) {
                 val infiniteTransition = rememberInfiniteTransition(label = "GlowAnimation")
 
-                val progress by
+                val progressState =
                   infiniteTransition.animateFloat(
                     initialValue = 0f,
                     targetValue = 1f,
@@ -1156,9 +1168,9 @@ fun BottomSheetPlayer(
                     label = "glowProgress"
                   )
 
-                fun rotatedColorAt(index: Int): Color {
+                fun rotatedColorAt(index: Int, currentProgress: Float): Color {
                   val size = colors.size
-                  val idx = index.toFloat() + progress * size
+                  val idx = index.toFloat() + currentProgress * size
                   val a = kotlin.math.floor(idx).toInt() % size
                   val b = (a + 1) % size
                   val frac = idx - kotlin.math.floor(idx)
@@ -1169,42 +1181,19 @@ fun BottomSheetPlayer(
                   )
                 }
 
-                fun oscillate(min: Float, max: Float, phase: Float, speed: Float = 1f): Float {
+                fun oscillate(
+                  currentProgress: Float,
+                  min: Float,
+                  max: Float,
+                  phase: Float,
+                  speed: Float = 1f
+                ): Float {
                   val v =
-                    kotlin.math.sin(2f * kotlin.math.PI.toFloat() * (progress * speed + phase))
+                    kotlin.math.sin(
+                      2f * kotlin.math.PI.toFloat() * (currentProgress * speed + phase)
+                    )
                   return min + (max - min) * ((v + 1f) * 0.5f)
                 }
-
-                val color1 = rotatedColorAt(0)
-                val color2 = rotatedColorAt(1)
-                val color3 = rotatedColorAt(2)
-                val color4 = rotatedColorAt(3)
-                val color5 = rotatedColorAt(4)
-                val color6 = rotatedColorAt(5)
-
-                val o1x = oscillate(0.0f, 1.0f, 0.00f, 1.0f)
-                val o1y = oscillate(0.0f, 0.5f, 0.07f, 1.0f)
-                val r1 = oscillate(0.8f, 1.6f, 0.12f, 1.0f)
-
-                val o2x = oscillate(1.0f, 0.0f, 0.2f, 1.0f)
-                val o2y = oscillate(0.5f, 1.0f, 0.25f, 1.0f)
-                val r2 = oscillate(0.7f, 1.5f, 0.18f, 1.0f)
-
-                val o3x = oscillate(0.2f, 0.8f, 0.33f, 1.0f)
-                val o3y = oscillate(0.8f, 0.2f, 0.36f, 1.0f)
-                val r3 = oscillate(0.6f, 1.4f, 0.29f, 1.0f)
-
-                val o4x = oscillate(0.3f, 0.7f, 0.44f, 1.0f)
-                val o4y = oscillate(0.2f, 0.8f, 0.41f, 1.0f)
-                val r4 = oscillate(0.9f, 1.7f, 0.47f, 1.0f)
-
-                val o5x = oscillate(0.4f, 0.6f, 0.55f, 1.0f)
-                val o5y = oscillate(0.0f, 1.0f, 0.51f, 1.0f)
-                val r5 = oscillate(0.7f, 1.5f, 0.58f, 1.0f)
-
-                val o6x = oscillate(0.0f, 1.0f, 0.66f, 1.0f)
-                val o6y = oscillate(0.5f, 0.7f, 0.62f, 1.0f)
-                val r6 = oscillate(0.8f, 1.8f, 0.69f, 1.0f)
 
                 Box(
                   modifier =
@@ -1215,74 +1204,106 @@ fun BottomSheetPlayer(
                         val height = size.height
                         val baseColor = Color(0xFF050505)
 
-                        val brush1 =
-                          Brush.radialGradient(
-                            colors =
-                              listOf(
-                                color1.copy(alpha = 0.85f),
-                                color1.copy(alpha = 0.5f),
-                                Color.Transparent
-                              ),
-                            center = Offset(width * o1x, height * o1y),
-                            radius = width * r1
-                          )
-                        val brush2 =
-                          Brush.radialGradient(
-                            colors =
-                              listOf(
-                                color2.copy(alpha = 0.8f),
-                                color2.copy(alpha = 0.45f),
-                                Color.Transparent
-                              ),
-                            center = Offset(width * o2x, height * o2y),
-                            radius = width * r2
-                          )
-                        val brush3 =
-                          Brush.radialGradient(
-                            colors =
-                              listOf(
-                                color3.copy(alpha = 0.75f),
-                                color3.copy(alpha = 0.4f),
-                                Color.Transparent
-                              ),
-                            center = Offset(width * o3x, height * o3y),
-                            radius = width * r3
-                          )
-                        val brush4 =
-                          Brush.radialGradient(
-                            colors =
-                              listOf(
-                                color4.copy(alpha = 0.7f),
-                                color4.copy(alpha = 0.35f),
-                                Color.Transparent
-                              ),
-                            center = Offset(width * o4x, height * o4y),
-                            radius = width * r4
-                          )
-                        val brush5 =
-                          Brush.radialGradient(
-                            colors =
-                              listOf(
-                                color5.copy(alpha = 0.65f),
-                                color5.copy(alpha = 0.3f),
-                                Color.Transparent
-                              ),
-                            center = Offset(width * o5x, height * o5y),
-                            radius = width * r5
-                          )
-                        val brush6 =
-                          Brush.radialGradient(
-                            colors =
-                              listOf(
-                                color6.copy(alpha = 0.6f),
-                                color6.copy(alpha = 0.25f),
-                                Color.Transparent
-                              ),
-                            center = Offset(width * o6x, height * o6y),
-                            radius = width * r6
-                          )
-
                         onDrawBehind {
+                          val currentProgress = progressState.value
+                          val color1 = rotatedColorAt(0, currentProgress)
+                          val color2 = rotatedColorAt(1, currentProgress)
+                          val color3 = rotatedColorAt(2, currentProgress)
+                          val color4 = rotatedColorAt(3, currentProgress)
+                          val color5 = rotatedColorAt(4, currentProgress)
+                          val color6 = rotatedColorAt(5, currentProgress)
+
+                          val o1x = oscillate(currentProgress, 0.0f, 1.0f, 0.00f, 1.0f)
+                          val o1y = oscillate(currentProgress, 0.0f, 0.5f, 0.07f, 1.0f)
+                          val r1 = oscillate(currentProgress, 0.8f, 1.6f, 0.12f, 1.0f)
+
+                          val o2x = oscillate(currentProgress, 1.0f, 0.0f, 0.2f, 1.0f)
+                          val o2y = oscillate(currentProgress, 0.5f, 1.0f, 0.25f, 1.0f)
+                          val r2 = oscillate(currentProgress, 0.7f, 1.5f, 0.18f, 1.0f)
+
+                          val o3x = oscillate(currentProgress, 0.2f, 0.8f, 0.33f, 1.0f)
+                          val o3y = oscillate(currentProgress, 0.8f, 0.2f, 0.36f, 1.0f)
+                          val r3 = oscillate(currentProgress, 0.6f, 1.4f, 0.29f, 1.0f)
+
+                          val o4x = oscillate(currentProgress, 0.3f, 0.7f, 0.44f, 1.0f)
+                          val o4y = oscillate(currentProgress, 0.2f, 0.8f, 0.41f, 1.0f)
+                          val r4 = oscillate(currentProgress, 0.9f, 1.7f, 0.47f, 1.0f)
+
+                          val o5x = oscillate(currentProgress, 0.4f, 0.6f, 0.55f, 1.0f)
+                          val o5y = oscillate(currentProgress, 0.0f, 1.0f, 0.51f, 1.0f)
+                          val r5 = oscillate(currentProgress, 0.7f, 1.5f, 0.58f, 1.0f)
+
+                          val o6x = oscillate(currentProgress, 0.0f, 1.0f, 0.66f, 1.0f)
+                          val o6y = oscillate(currentProgress, 0.5f, 0.7f, 0.62f, 1.0f)
+                          val r6 = oscillate(currentProgress, 0.8f, 1.8f, 0.69f, 1.0f)
+
+                          val brush1 =
+                            Brush.radialGradient(
+                              colors =
+                                listOf(
+                                  color1.copy(alpha = 0.85f),
+                                  color1.copy(alpha = 0.5f),
+                                  Color.Transparent
+                                ),
+                              center = Offset(width * o1x, height * o1y),
+                              radius = width * r1
+                            )
+                          val brush2 =
+                            Brush.radialGradient(
+                              colors =
+                                listOf(
+                                  color2.copy(alpha = 0.8f),
+                                  color2.copy(alpha = 0.45f),
+                                  Color.Transparent
+                                ),
+                              center = Offset(width * o2x, height * o2y),
+                              radius = width * r2
+                            )
+                          val brush3 =
+                            Brush.radialGradient(
+                              colors =
+                                listOf(
+                                  color3.copy(alpha = 0.75f),
+                                  color3.copy(alpha = 0.4f),
+                                  Color.Transparent
+                                ),
+                              center = Offset(width * o3x, height * o3y),
+                              radius = width * r3
+                            )
+                          val brush4 =
+                            Brush.radialGradient(
+                              colors =
+                                listOf(
+                                  color4.copy(alpha = 0.7f),
+                                  color4.copy(alpha = 0.35f),
+                                  Color.Transparent
+                                ),
+                              center = Offset(width * o4x, height * o4y),
+                              radius = width * r4
+                            )
+                          val brush5 =
+                            Brush.radialGradient(
+                              colors =
+                                listOf(
+                                  color5.copy(alpha = 0.65f),
+                                  color5.copy(alpha = 0.3f),
+                                  Color.Transparent
+                                ),
+                              center = Offset(width * o5x, height * o5y),
+                              radius = width * r5
+                            )
+                          val brush6 =
+                            Brush.radialGradient(
+                              colors =
+                                listOf(
+                                  color6.copy(alpha = 0.6f),
+                                  color6.copy(alpha = 0.25f),
+                                  Color.Transparent
+                                ),
+                              center = Offset(width * o6x, height * o6y),
+                              radius = width * r6
+                            )
+
                           drawRect(color = baseColor)
                           drawRect(brush = brush1)
                           drawRect(brush = brush2)
@@ -1312,7 +1333,7 @@ fun BottomSheetPlayer(
                       ImageRequest.Builder(context)
                         .data(thumbnailUrl)
                         .size(128, 128)
-                        .allowHardware(false)
+                        .allowHardware(true)
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -1332,22 +1353,21 @@ fun BottomSheetPlayer(
                         .fillMaxHeight(0.68f)
                         .alpha(clearArtworkAlpha)
                         .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                        .drawWithContent {
-                          drawContent()
-
-                          drawRect(
-                            brush =
-                              Brush.verticalGradient(
-                                colorStops =
-                                  arrayOf(
-                                    0.00f to Color.Black,
-                                    0.70f to Color.Black,
-                                    0.88f to Color.Black.copy(alpha = 0.4f),
-                                    1.00f to Color.Transparent,
-                                  )
-                              ),
-                            blendMode = BlendMode.DstIn
-                          )
+                        .drawWithCache {
+                          val maskBrush =
+                            Brush.verticalGradient(
+                              colorStops =
+                                arrayOf(
+                                  0.00f to Color.Black,
+                                  0.70f to Color.Black,
+                                  0.88f to Color.Black.copy(alpha = 0.4f),
+                                  1.00f to Color.Transparent,
+                                )
+                            )
+                          onDrawWithContent {
+                            drawContent()
+                            drawRect(brush = maskBrush, blendMode = BlendMode.DstIn)
+                          }
                         }
                   ) {
                     AsyncImage(
@@ -1375,12 +1395,13 @@ fun BottomSheetPlayer(
 
                   Box(
                     modifier =
-                      Modifier.fillMaxSize()
-                        .background(
+                      Modifier.fillMaxSize().drawWithCache {
+                        val overlayBrush =
                           Brush.verticalGradient(
                             listOf(Color.Black.copy(alpha = 0.05f), Color.Black.copy(alpha = 0.4f))
                           )
-                        )
+                        onDrawBehind { drawRect(overlayBrush) }
+                      }
                   )
                 }
               }
@@ -1453,7 +1474,7 @@ fun BottomSheetPlayer(
                       ImageRequest.Builder(context)
                         .data(thumbnailUrl)
                         .size(128, 128)
-                        .allowHardware(false)
+                        .allowHardware(true)
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -1469,7 +1490,7 @@ fun BottomSheetPlayer(
                       ImageRequest.Builder(context)
                         .data(thumbnailUrl)
                         .size(128, 128)
-                        .allowHardware(false)
+                        .allowHardware(true)
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -1487,7 +1508,7 @@ fun BottomSheetPlayer(
                       ImageRequest.Builder(context)
                         .data(thumbnailUrl)
                         .size(128, 128)
-                        .allowHardware(false)
+                        .allowHardware(true)
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -1500,15 +1521,19 @@ fun BottomSheetPlayer(
                       }
                   )
 
-                  Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.2f)))
                   Box(
                     modifier =
-                      Modifier.fillMaxSize()
-                        .background(
+                      Modifier.fillMaxSize().drawWithCache {
+                        val baseOverlay = Color.Black.copy(alpha = 0.2f)
+                        val vignetteBrush =
                           Brush.verticalGradient(
                             listOf(Color.Transparent, Color.Black.copy(alpha = 0.25f))
                           )
-                        )
+                        onDrawBehind {
+                          drawRect(baseOverlay)
+                          drawRect(vignetteBrush)
+                        }
+                      }
                   )
                 }
               }
@@ -1526,8 +1551,8 @@ fun BottomSheetPlayer(
     },
     collapsedContent = {
       MiniPlayer(
-        positionState = positionState,
-        durationState = durationState,
+        positionProvider = { positionState.longValue },
+        durationProvider = { durationState.longValue },
         onClick = { state.expandSoft() }
       )
     },
@@ -2123,6 +2148,7 @@ fun BottomSheetPlayer(
 
       Spacer(Modifier.height(if (useNewPlayerDesign) 24.dp else 20.dp))
 
+      PlayerStateBoundary {
       when (sliderStyle) {
         SliderStyle.DEFAULT -> {
           Slider(
@@ -2561,6 +2587,7 @@ fun BottomSheetPlayer(
       }
 
       automixDebugOverlay()
+      }
 
       Spacer(Modifier.height(if (useNewPlayerDesign) 24.dp else 12.dp))
 
@@ -2733,82 +2760,90 @@ fun BottomSheetPlayer(
                 Spacer(modifier = Modifier.width(16.dp))
               }
 
-              val cookieIndent by
-                animateFloatAsState(
-                  targetValue = if (effectiveIsPlaying) 0.08f else 0f,
-                  animationSpec = tween(durationMillis = 300, easing = LinearEasing),
-                  label = "cookieIndent",
-                )
-
-              val infiniteTransition = rememberInfiniteTransition(label = "rotation")
-              val rotation by
-                infiniteTransition.animateFloat(
-                  initialValue = 0f,
-                  targetValue = 360f,
-                  animationSpec =
-                    infiniteRepeatable(
-                      animation = tween(8000, easing = LinearEasing),
-                      repeatMode = RepeatMode.Restart
-                    ),
-                  label = "rotation"
-                )
-
-              FilledIconButton(
-                onClick = {
-                  if (isListenTogetherGuest) {
-                    playerConnection.toggleMute()
-                    return@FilledIconButton
-                  }
-                  if (isCasting) {
-                    if (castIsPlaying) {
-                      castHandler?.pause()
-                    } else {
-                      castHandler?.play()
-                    }
-                  } else if (playbackState == STATE_ENDED) {
-                    playerConnection.player.seekTo(0, 0)
-                    playerConnection.player.playWhenReady = true
-                  } else {
-                    playerConnection.togglePlayPause()
-                  }
-                },
-                shape =
-                  if (wavyPlayPause && cookieIndent > 0f) WavyShape(9, cookieIndent, rotation) else mainButtonSquircle,
-                interactionSource = playPauseInteractionSource,
-                colors =
-                  IconButtonDefaults.filledIconButtonColors(
-                    containerColor = textButtonColor,
-                    contentColor = iconButtonColor,
-                  ),
-                modifier =
-                  Modifier.size(mainButtonSize).graphicsLayer {
-                    scaleX = playPauseScale
-                    scaleY = playPauseScale
-                  }
-              ) {
-                Row(
-                  verticalAlignment = Alignment.CenterVertically,
-                  horizontalArrangement = Arrangement.Center
-                ) {
-                  Icon(
-                    painter =
-                      painterResource(
-                        if (isListenTogetherGuest) {
-                          if (isMuted) R.drawable.volume_off else R.drawable.volume_up
-                        } else {
-                          if (effectiveIsPlaying) R.drawable.pause else R.drawable.play
-                        }
-                      ),
-                    contentDescription =
-                      if (isListenTogetherGuest) {
-                        if (isMuted) stringResource(R.string.unmute)
-                        else stringResource(R.string.mute)
-                      } else {
-                        if (effectiveIsPlaying) stringResource(R.string.pause)
-                        else stringResource(R.string.play)
-                      },
-                    modifier = Modifier.size(if (showSeekButtons) 30.dp else 38.dp)
+              PlayerStateBoundary {
+                val cookieIndent by
+                  animateFloatAsState(
+                    targetValue = if (effectiveIsPlaying) 0.08f else 0f,
+                    animationSpec = tween(durationMillis = 300, easing = LinearEasing),
+                    label = "cookieIndent",
                   )
+
+                val rotation =
+                  if (wavyPlayPause && cookieIndent > 0f) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "rotation")
+                    val rot by
+                      infiniteTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 360f,
+                        animationSpec =
+                          infiniteRepeatable(
+                            animation = tween(8000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                          ),
+                        label = "rotation"
+                      )
+                    rot
+                  } else {
+                    0f
+                  }
+
+                FilledIconButton(
+                  onClick = {
+                    if (isListenTogetherGuest) {
+                      playerConnection.toggleMute()
+                      return@FilledIconButton
+                    }
+                    if (isCasting) {
+                      if (castIsPlaying) {
+                        castHandler?.pause()
+                      } else {
+                        castHandler?.play()
+                      }
+                    } else if (playbackState == STATE_ENDED) {
+                      playerConnection.player.seekTo(0, 0)
+                      playerConnection.player.playWhenReady = true
+                    } else {
+                      playerConnection.togglePlayPause()
+                    }
+                  },
+                  shape =
+                    if (wavyPlayPause && cookieIndent > 0f) WavyShape(9, cookieIndent, rotation) else mainButtonSquircle,
+                  interactionSource = playPauseInteractionSource,
+                  colors =
+                    IconButtonDefaults.filledIconButtonColors(
+                      containerColor = textButtonColor,
+                      contentColor = iconButtonColor,
+                    ),
+                  modifier =
+                    Modifier.size(mainButtonSize).graphicsLayer {
+                      scaleX = playPauseScale
+                      scaleY = playPauseScale
+                    }
+                ) {
+                  Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                  ) {
+                    Icon(
+                      painter =
+                        painterResource(
+                          if (isListenTogetherGuest) {
+                            if (isMuted) R.drawable.volume_off else R.drawable.volume_up
+                          } else {
+                            if (effectiveIsPlaying) R.drawable.pause else R.drawable.play
+                          }
+                        ),
+                      contentDescription =
+                        if (isListenTogetherGuest) {
+                          if (isMuted) stringResource(R.string.unmute)
+                          else stringResource(R.string.mute)
+                        } else {
+                          if (effectiveIsPlaying) stringResource(R.string.pause)
+                          else stringResource(R.string.play)
+                        },
+                      modifier = Modifier.size(if (showSeekButtons) 30.dp else 38.dp)
+                    )
+                  }
                 }
               }
 
@@ -3494,7 +3529,12 @@ private fun BackgroundVideoView(
 
   LaunchedEffect(isPlaying) { exoPlayer.playWhenReady = isPlaying }
 
-  DisposableEffect(Unit) { onDispose { exoPlayer.release() } }
+  DisposableEffect(Unit) {
+    onDispose {
+      exoPlayer.clearVideoSurface()
+      exoPlayer.release()
+    }
+  }
 
   val alpha by
     animateFloatAsState(
@@ -3522,4 +3562,9 @@ private fun BackgroundVideoView(
     },
     modifier = modifier.alpha(alpha)
   )
+}
+
+@Composable
+private fun PlayerStateBoundary(content: @Composable () -> Unit) {
+  content()
 }

@@ -9,18 +9,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import echo.music.iad1tya.ui.component.backdrop.Backdrop
-import echo.music.iad1tya.ui.component.backdrop.drawBackdrop
-import echo.music.iad1tya.ui.component.backdrop.effects.blur
-import echo.music.iad1tya.ui.component.backdrop.effects.colorControls
-import echo.music.iad1tya.ui.component.backdrop.effects.lens
-import echo.music.iad1tya.ui.component.backdrop.highlight.Highlight
-import echo.music.iad1tya.ui.component.backdrop.shadow.Shadow
 
 /**
  * User-configurable parameters of the liquid glass effect, sourced from DataStore preferences in
@@ -141,67 +145,68 @@ fun Modifier.liquidGlass(
   blurRadiusDp: Float = config.blurRadius,
 ): Modifier {
   if (!isGlassSupported()) return this
-  val backdrop = LocalAppBackdrop.current
-  val density = LocalDensity.current
   val surfaceColor = MaterialTheme.colorScheme.surface
-  val (resolutionScale, blurPx, saturation) =
-    androidx.compose.runtime.remember(blurRadiusDp, config.vibrancy, density) {
-      val scale = glassResolutionScale(blurRadiusDp)
-      Triple(
-        scale,
-        with(density) { blurRadiusDp.dp.toPx() } * scale,
-        glassSaturation(config.vibrancy),
-      )
-    }
-  val (lensHeightPx, lensAmountPx) =
-    androidx.compose.runtime.remember(config.lensHeight, config.lensAmount, resolutionScale, density) {
-      (with(density) { (config.lensHeight * LENS_MAX_DP).dp.toPx() } * resolutionScale) to
-        (with(density) { (config.lensAmount * LENS_MAX_DP).dp.toPx() } * resolutionScale)
-    }
+  val isLightSurface =
+    androidx.compose.runtime.remember(surfaceColor) { surfaceColor.luminance() > 0.5f }
   val surfaceTintColor =
-    androidx.compose.runtime.remember(config.surfaceTintColor, surfaceColor) {
+    androidx.compose.runtime.remember(config.surfaceTintColor, isLightSurface) {
       if (config.surfaceTintColor.isSpecified) {
         config.surfaceTintColor
-      } else if (surfaceColor.luminance() > 0.5f) {
+      } else if (isLightSurface) {
         Color(0xFFFAFAFA)
       } else {
-        Color(0xFF121212)
+        Color(0xFF141418)
       }
     }
+  val effectiveAlpha =
+    if (applyEdgeEffects) 0.85f else config.surfaceOpacity.coerceIn(0.75f, 0.92f)
 
-  return drawBackdrop(
-    backdrop = backdrop,
-    shape = { shape },
-    effects = {
-      if (saturation != 1f) {
-        colorControls(saturation = saturation)
-      }
-      if (blurPx > 0f) {
-        blur(blurPx)
-      }
-      if (
-        applyEdgeEffects &&
-          Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-          (lensHeightPx > 0f || lensAmountPx > 0f)
-      ) {
-        lens(
-          refractionHeight = lensHeightPx,
-          refractionAmount = lensAmountPx,
-          depthEffect = config.depthEffect,
-          chromaticAberration = config.chromaticAberration,
+  return this.graphicsLayer { compositingStrategy = CompositingStrategy.ModulateAlpha }
+    .clip(shape)
+    .drawWithCache {
+      val fillColor = surfaceTintColor.copy(alpha = effectiveAlpha)
+      val specularBrush =
+        Brush.linearGradient(
+          colors =
+            if (isLightSurface) {
+              listOf(
+                Color.White.copy(alpha = 0.65f),
+                Color.White.copy(alpha = 0.15f),
+                Color.Black.copy(alpha = 0.08f),
+              )
+            } else {
+              listOf(
+                Color.White.copy(alpha = 0.28f),
+                Color.White.copy(alpha = 0.06f),
+                Color.White.copy(alpha = 0.14f),
+              )
+            },
+          start = Offset.Zero,
+          end = Offset(size.width, size.height),
         )
-      }
-    },
-    highlight = if (applyEdgeEffects) ({ Highlight.Default }) else null,
-    shadow = if (applyEdgeEffects) ({ Shadow.Default }) else null,
-    onDrawSurface = {
-      if (config.surfaceOpacity > 0f) {
-        drawRect(
-          color = surfaceTintColor.copy(alpha = config.surfaceOpacity),
-          size = size,
+      val sheenBrush =
+        Brush.linearGradient(
+          colors =
+            listOf(
+              Color.White.copy(alpha = if (isLightSurface) 0.18f else 0.07f),
+              Color.Transparent,
+            ),
+          start = Offset.Zero,
+          end = Offset(0f, size.height * 0.6f),
         )
+      val outline = shape.createOutline(size, layoutDirection, this)
+      val strokeWidthPx = 1.dp.toPx()
+
+      onDrawBehind {
+        drawRect(color = fillColor)
+        if (applyEdgeEffects) {
+          drawRect(brush = sheenBrush)
+          drawOutline(
+            outline = outline,
+            brush = specularBrush,
+            style = Stroke(width = strokeWidthPx),
+          )
+        }
       }
-    },
-    backdropScale = resolutionScale,
-  )
+    }
 }

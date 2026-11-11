@@ -57,15 +57,17 @@ fun BottomSheet(
 ) {
   val density = LocalDensity.current
 
-  Box(
-    modifier =
-      modifier
-        .graphicsLayer {
-          alpha = (1.4f * (state.progress.coerceAtLeast(0.1f) - 0.1f).pow(0.5f)).coerceIn(0f, 1f)
-        }
-        .fillMaxSize(),
-    content = background
-  )
+  if (!state.isCollapsed && !state.isDismissed) {
+    Box(
+      modifier =
+        modifier
+          .graphicsLayer {
+            alpha = (1.4f * (state.progress.coerceAtLeast(0.1f) - 0.1f).pow(0.5f)).coerceIn(0f, 1f)
+          }
+          .fillMaxSize(),
+      content = background
+    )
+  }
   Box(
     modifier =
       modifier

@@ -1109,12 +1109,17 @@ class MainActivity : ComponentActivity() {
           }
 
         val pauseListenHistory by rememberPreference(PauseListenHistoryKey, defaultValue = false)
-        val eventCount by database.eventCount().collectAsState(initial = 0)
+        val eventCount by remember(database) { database.eventCount() }.collectAsState(initial = 0)
         val showHistoryButton =
           remember(pauseListenHistory, eventCount) { !(pauseListenHistory && eventCount == 0) }
 
         val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
 
+        val (miniPlayerBackgroundStyle) =
+          rememberEnumPreference(
+            echo.music.iad1tya.constants.MiniPlayerBackgroundStyleKey,
+            defaultValue = echo.music.iad1tya.constants.PlayerBackgroundStyle.DEFAULT
+          )
         val (liquidGlassGlobalEnabled) =
           rememberPreference(LiquidGlassGlobalEnabledKey, defaultValue = false)
         val (liquidGlassVibrancy) = rememberPreference(LiquidGlassVibrancyKey, defaultValue = 1f)
@@ -1268,45 +1273,27 @@ class MainActivity : ComponentActivity() {
                         }
                       }
                       IconButton(onClick = { showSettingDialoge = true }) {
-                        val profileRingTransition = rememberInfiniteTransition(label = "TopBarProfileRing")
-                        val profileRingAngle by profileRingTransition.animateFloat(
-                          initialValue = 0f,
-                          targetValue = 360f,
-                          animationSpec = infiniteRepeatable(
-                            animation = tween(12000, easing = LinearEasing),
-                            repeatMode = RepeatMode.Restart
-                          ),
-                          label = "profileRingAngle"
-                        )
-                        val profileRingAlpha by profileRingTransition.animateFloat(
-                          initialValue = 0.65f,
-                          targetValue = 1f,
-                          animationSpec = infiniteRepeatable(
-                            animation = tween(2400, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                          ),
-                          label = "profileRingAlpha"
-                        )
+                        val profileRingBrush = remember {
+                          Brush.sweepGradient(
+                            listOf(
+                              Color(0xFFFF5252),
+                              Color(0xFFFF7A8A).copy(alpha = 0.85f),
+                              Color(0xFFFF8E9E),
+                              Color(0xFFFF6B6B).copy(alpha = 0.9f),
+                              Color(0xFFFF5252)
+                            )
+                          )
+                        }
                         Box(
                           modifier = Modifier.size(34.dp),
                           contentAlignment = Alignment.Center
                         ) {
-                          // Light Red Story / Wrapped Ring with slight gentle animation
                           Box(
                             modifier = Modifier
                               .fillMaxSize()
-                              .graphicsLayer { rotationZ = profileRingAngle }
                               .border(
                                 width = 2.dp,
-                                brush = Brush.sweepGradient(
-                                  listOf(
-                                    Color(0xFFFF5252).copy(alpha = profileRingAlpha),
-                                    Color(0xFFFF7A8A).copy(alpha = profileRingAlpha * 0.85f),
-                                    Color(0xFFFF8E9E).copy(alpha = profileRingAlpha),
-                                    Color(0xFFFF6B6B).copy(alpha = profileRingAlpha * 0.9f),
-                                    Color(0xFFFF5252).copy(alpha = profileRingAlpha)
-                                  )
-                                ),
+                                brush = profileRingBrush,
                                 shape = CircleShape
                               )
                           )
@@ -1698,9 +1685,7 @@ class MainActivity : ComponentActivity() {
                         it / 8
                       } + fadeOut(tween(400, easing = EmphasizedEasing))
                   },
-                  modifier =
-                    Modifier.layerBackdrop(appBackdrop)
-                      .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
+                  modifier = Modifier.nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
                 ) {
                   navigationBuilder(
                     navController = navController,

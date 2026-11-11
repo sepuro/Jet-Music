@@ -71,14 +71,17 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
+import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.withTimeoutOrNull
 
+@Immutable
 data class DailyDiscoverItem(
   val seed: Song,
   val recommendation: YTItem,
   val relatedEndpoint: BrowseEndpoint?
 )
 
+@Immutable
 data class CommunityPlaylistItem(val playlist: PlaylistItem, val songs: List<SongItem>)
 
 @OptIn(ExperimentalCoroutinesApi::class)

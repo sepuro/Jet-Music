@@ -112,7 +112,7 @@ class App : Application(), SingletonImageLoader.Factory {
               it[MaxImageCacheSizeKey]
             } catch (e: Exception) {
               null
-            }) ?: 512
+            }) ?: 250
           }
           .first()
     }
@@ -352,14 +352,14 @@ class App : Application(), SingletonImageLoader.Factory {
                 it[MaxImageCacheSizeKey]
               } catch (e: Exception) {
                 null
-              }) ?: 512
+              }) ?: 250
             }
             .first()
         }
     return ImageLoader.Builder(this)
       .apply {
-        crossfade(true)
-        allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+        crossfade(false)
+        allowHardware(true)
         components { add(YouTubeThumbnailFallbackInterceptor()) }
 
         memoryCache { MemoryCache.Builder().maxSizePercent(context, 0.25).build() }

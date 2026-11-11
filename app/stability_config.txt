@@ -1,0 +1,19 @@
+// Standard Kotlin & Coroutines collections/streams treated as stable by Compose Compiler
+kotlin.collections.Collection
+kotlin.collections.List
+kotlin.collections.Set
+kotlin.collections.Map
+kotlin.Pair
+kotlin.Triple
+kotlinx.coroutines.flow.Flow
+kotlinx.coroutines.flow.StateFlow
+kotlinx.coroutines.flow.SharedFlow
+java.time.LocalDateTime
+java.time.LocalDate
+java.time.Duration
+
+// Domain, Database & Network Models
+com.music.innertube.models.*
+com.music.innertube.pages.*
+echo.music.iad1tya.db.entities.*
+echo.music.iad1tya.models.*

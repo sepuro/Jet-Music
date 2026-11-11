@@ -31,11 +31,13 @@ data class MediaMetadata(
   val isVideoSong: Boolean
     get() = musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV
 
+  @Immutable
   data class Artist(
     val id: String?,
     val name: String,
   ) : Serializable
 
+  @Immutable
   data class Album(
     val id: String,
     val title: String,
