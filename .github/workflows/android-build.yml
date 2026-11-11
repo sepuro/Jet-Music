@@ -112,7 +112,7 @@ jobs:
         grep -qi "acb5505eb05721e4e2c842b3d3ddd040df9986f99c4ea95a16d0ccc9eca7c7af" apksigner_output.txt
         "$BUILD_TOOLS_DIR/aapt2" dump badging "$APK_PATH" | grep -E "package:|launchable-activity:" | tee badging_output.txt
         grep -q "name='app.jetmusic.android'" badging_output.txt
-        grep -q "versionCode='190'" badging_output.txt
+        grep -q "versionCode='191'" badging_output.txt
         grep -q "versionName='${VERSION}'" badging_output.txt
 
     - name: Upload Jet Music Release APK Artifact
@@ -129,14 +129,13 @@ jobs:
       run: |
         VERSION=$(grep 'versionName =' app/build.gradle.kts | head -1 | cut -d'"' -f2)
         TAG="v${VERSION}"
-        TITLE="Jet Music v${VERSION} — Hardened OTA Updater, Unified Release Signing & FileProvider Installer"
+        TITLE="Jet Music v${VERSION} — Instagram Card in About & Seamless Music Flow Active Track Continuity"
         NOTES="## Jet Music v${VERSION}
 
-        ### Seguridad de Paquetes y Motor de Actualización OTA Blindado
-        - **Firma Criptográfica Única e Inmutable (v1/v2/v3)**: Unificado el keystore oficial del proyecto (\`app/keystore.jks\`) entre compilaciones locales y GitHub Actions CI/CD, eliminando \`INSTALL_FAILED_UPDATE_INCOMPATIBLE\`.
-        - **Sincronización Monotónica de Versión**: Establecido \`versionCode = 190\` y \`versionName = \"1.9.0\"\` para garantizar actualizaciones limpias sin \`INSTALL_FAILED_VERSION_DOWNGRADE\`.
-        - **Descarga OTA con OkHttp y Validación de Archivo**: Descarga directa con \`OkHttpClient\` (\`followRedirects = true\`, \`followSslRedirects = true\`) hacia \`cacheDir/updates/Jet-Music-update.apk\`, sincronización a disco (\`flush()\` + \`fd.sync()\`) y validación previa mediante \`PackageManager.getPackageArchiveInfo\`.
-        - **Instalador con FileProvider y Reanudación Automática**: Verificación de \`canRequestPackageInstalls()\` con reanudación automática al volver de Ajustes y lanzamiento seguro con \`FileProvider\`."
+        ### Novedades de esta versión
+        - **Tarjeta de Instagram en Sobre (\`AboutScreen\`)**: Añadida la tarjeta de Instagram (\`instagram.com/amalejandroo\`) debajo de Website en el grupo de enlaces de **Jet Music**, manteniendo el diseño agrupado Material3 Expressive.
+        - **Continuidad Perfecta al Abrir Music Flow**: Al pulsar el chip **Music Flow** desde el reproductor, la canción activa permanece siempre en la página inicial (\`page = 0\`) continuando exactamente en el segundo actual (\`player.currentPosition\`) sin cambiar ni reiniciar el audio; las pistas recomendadas se encolan a partir del índice siguiente (\`page >= 1\`).
+        - **Actualización OTA In-Place (\`versionCode = 191\`)**: Firmado con el certificado oficial único (\`v1\`/\`v2\`/\`v3\`) para actualización directa vía OTA desde \`v1.9.0\`."
 
         if gh release view "$TAG" >/dev/null 2>&1; then
           gh release upload "$TAG" "release-assets/Jet-Music-v${VERSION}-release.apk" --clobber

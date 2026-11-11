@@ -128,6 +128,11 @@ fun MusicFlowScreen(
   val expandPlayer = LocalExpandPlayer.current
   val scope = rememberCoroutineScope()
 
+  remember(playerConnection) {
+    viewModel.prepareEntry(playerConnection)
+    true
+  }
+
   DisposableEffect(playerConnection) {
     viewModel.attach(playerConnection)
     onDispose { viewModel.detach() }
@@ -139,7 +144,7 @@ fun MusicFlowScreen(
   val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
   val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
   val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
-  val currentMediaId = mediaMetadata?.id
+  val currentMediaId = playerConnection.player.currentMediaItem?.mediaId ?: mediaMetadata?.id
 
   val reduceMotion = remember { context.isReducedMotion() }
   val showCanvas = preferences.animatedBackground && !preferences.dataSaver
@@ -147,9 +152,13 @@ fun MusicFlowScreen(
     !preferences.dataSaver && (preferences.cellularPrefetch || !context.isActiveNetworkMetered())
   }
 
-  var progress by remember(currentMediaId) { mutableFloatStateOf(0f) }
-  var positionMs by remember(currentMediaId) { mutableLongStateOf(0L) }
-  var durationMs by remember(currentMediaId) { mutableLongStateOf(0L) }
+  val initialPosAndDur = remember(currentMediaId) { playerConnection.positionAndDuration() }
+  var progress by remember(currentMediaId) {
+    val (pos, dur) = initialPosAndDur
+    mutableFloatStateOf(if (dur > 0) pos.toFloat() / dur else 0f)
+  }
+  var positionMs by remember(currentMediaId) { mutableLongStateOf(initialPosAndDur.first) }
+  var durationMs by remember(currentMediaId) { mutableLongStateOf(initialPosAndDur.second) }
 
   LaunchedEffect(playerConnection, currentMediaId) {
     while (isActive) {

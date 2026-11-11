@@ -47,6 +47,19 @@ class PlayerConnectionMusicFlowPlayer(
     return queue
   }
 
+  override fun attachQueuePreservingCurrent(items: List<MusicFlowItem>): Any? {
+    val player = connection.player
+    val currentItem = player.currentMediaItem ?: return null
+    if (items.isEmpty() || items.first().songId != currentItem.mediaId) return null
+    val queue = MusicFlowQueue(queueTitle, items, 0, session)
+    service.attachMusicFlowQueuePreservingCurrent(
+      queue = queue,
+      title = queueTitle,
+      upcomingItems = items.drop(1).map { it.song.toMediaItem() },
+    )
+    return queue
+  }
+
   override fun append(handle: Any, items: List<MusicFlowItem>) {
     if (!ownsQueue(handle)) return
     service.addToQueue(items.map { it.song.toMediaItem() })

@@ -180,6 +180,16 @@ fun AboutScreen(
                 title = { Text("Website") },
                 description = { Text("jetmusic.site") },
                 onClick = { uriHandler.openUri("https://jetmusic.site") }
+              ),
+              Material3SettingsItem(
+                icon = painterResource(R.drawable.instagram),
+                title = { Text("Instagram") },
+                description = { Text("instagram.com/amalejandroo") },
+                onClick = {
+                  uriHandler.openUri(
+                    "https://www.instagram.com/amalejandroo?dlrf=MTJlMHE4eDNlMHppag=="
+                  )
+                }
               )
             )
         )

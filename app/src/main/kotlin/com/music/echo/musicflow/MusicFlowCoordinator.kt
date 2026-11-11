@@ -16,6 +16,8 @@ interface MusicFlowPlayer {
 
   fun startQueue(items: List<MusicFlowItem>, startIndex: Int, playWhenReady: Boolean): Any
 
+  fun attachQueuePreservingCurrent(items: List<MusicFlowItem>): Any?
+
   fun append(handle: Any, items: List<MusicFlowItem>)
 
   fun setPauseAtEnd(handle: Any, pause: Boolean)
@@ -41,6 +43,24 @@ class MusicFlowCoordinator(
   fun nextRequestId(): Long = ++latestRequestId
 
   fun ownsPlayback(): Boolean = session.queueHandle?.let(player::ownsQueue) == true
+
+  /**
+   * Attaches the Music Flow feed items (`page >= 1`) after the currently playing track in ExoPlayer
+   * without calling `setMediaItems` or interrupting the active track's playback position.
+   */
+  fun syncUpcomingQueueForCurrentTrack(autoNext: Boolean) {
+    if (player.takeoverBlock() != null) return
+    val items = session.state.value.items
+    val currentId = player.currentMediaId() ?: return
+    if (items.firstOrNull()?.songId != currentId) return
+
+    if (!player.isAnyFlowQueueActive() && session.queueSnapshot == null) {
+      session.queueSnapshot = player.snapshot()
+    }
+    val newHandle = player.attachQueuePreservingCurrent(items) ?: return
+    session.queueHandle = newHandle
+    player.setPauseAtEnd(newHandle, !autoNext)
+  }
 
   fun select(
     requestId: Long,

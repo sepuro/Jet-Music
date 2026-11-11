@@ -49,8 +49,35 @@ class MusicFlowSession @Inject constructor(private val source: MusicFlowFeedSour
   val isStarted: Boolean
     get() = _state.value.items.isNotEmpty()
 
+  /**
+   * Synchronously ensures that if a track is currently playing in ExoPlayer ([nowPlaying]),
+   * it is immediately placed at index 0 (`page = 0`) with `selectedIndex = 0` before the UI
+   * initializes its PagerState, preventing any stale track from taking over playback.
+   */
+  fun prepareEntryWithNowPlaying(nowPlaying: MusicFlowItem?) {
+    if (nowPlaying == null) return
+    markSeen(nowPlaying)
+    _state.update { current ->
+      val currentFirst = current.items.firstOrNull()
+      if (currentFirst?.songId == nowPlaying.songId && current.selectedIndex == 0) {
+        current
+      } else {
+        val remaining = current.items.filter { it.songId != nowPlaying.songId }
+        current.copy(
+          items = listOf(nowPlaying) + remaining,
+          selectedIndex = 0,
+        )
+      }
+    }
+  }
+
   suspend fun start(nowPlaying: MusicFlowItem?) {
-    if (isStarted) return
+    if (isStarted) {
+      if (nowPlaying != null) {
+        prepareEntryWithNowPlaying(nowPlaying)
+      }
+      return
+    }
     reset(nowPlaying)
   }
 

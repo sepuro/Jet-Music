@@ -2058,13 +2058,17 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
     return scope.launch(SilentHandler) {
       val initialStatus =
         withContext(Dispatchers.IO) {
-          queue
-            .getInitialStatus()
-            .filterExplicit(dataStore.get(HideExplicitKey, false))
-            .filterVideoSongs(
-              dataStore.get(HideVideoSongsKey, false) ||
-                dataStore.get(echo.music.iad1tya.constants.DataSaverEnabledKey, false)
-            )
+          val rawStatus = queue.getInitialStatus()
+          if (queue is echo.music.iad1tya.musicflow.MusicFlowQueue) {
+            rawStatus
+          } else {
+            rawStatus
+              .filterExplicit(dataStore.get(HideExplicitKey, false))
+              .filterVideoSongs(
+                dataStore.get(HideVideoSongsKey, false) ||
+                  dataStore.get(echo.music.iad1tya.constants.DataSaverEnabledKey, false)
+              )
+          }
         }
       if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
       if (initialStatus.title != null) {
@@ -2500,6 +2504,38 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
     if (!playerInitialized.value || currentQueue !== queue) return
     pauseAtEndOwner = if (pause) queue else null
     player.pauseAtEndOfMediaItems = pause
+  }
+
+  /**
+   * Attaches a [echo.music.iad1tya.musicflow.MusicFlowQueue] while keeping the currently playing
+   * [MediaItem] untouched at index 0 (`currentPosition` preserved without calling `setMediaItems`),
+   * and appends [upcomingItems] right after the active track (`index >= 1`).
+   */
+  fun attachMusicFlowQueuePreservingCurrent(
+    queue: Queue,
+    title: String?,
+    upcomingItems: List<MediaItem>,
+  ) {
+    if (!playerInitialized.value || player.mediaItemCount == 0) return
+    val currentIndex = player.currentMediaItemIndex
+    if (currentIndex < 0 || currentIndex >= player.mediaItemCount) return
+
+    queueGeneration++
+    loadMoreJob?.cancel()
+    loadMoreJob = null
+    currentQueue = queue
+    queueTitle = title
+
+    if (player.mediaItemCount > currentIndex + 1) {
+      player.removeMediaItems(currentIndex + 1, player.mediaItemCount)
+    }
+    if (currentIndex > 0) {
+      player.removeMediaItems(0, currentIndex)
+    }
+    if (upcomingItems.isNotEmpty()) {
+      player.addMediaItems(1, upcomingItems)
+    }
+    originalQueueSize = player.mediaItemCount
   }
 
   fun playNext(items: List<MediaItem>) {
