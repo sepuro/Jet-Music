@@ -142,7 +142,10 @@ fun CrashScreen(crashLog: String, onClose: () -> Unit, onShare: () -> Unit, onCo
           }
         },
         colors =
-          TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+          TopAppBarDefaults.topAppBarColors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+          )
       )
     },
     floatingActionButton = {

@@ -100,6 +100,11 @@ fun MusicFlowSettings(
         Icon(painterResource(R.drawable.arrow_back), contentDescription = stringResource(R.string.back_button_desc))
       }
     },
+    colors =
+      androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+      ),
     scrollBehavior = scrollBehavior,
   )
 }

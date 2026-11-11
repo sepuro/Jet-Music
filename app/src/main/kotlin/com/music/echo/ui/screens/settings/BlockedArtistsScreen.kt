@@ -47,7 +47,12 @@ fun BlockedArtistsScreen(navController: NavController) {
           IconButton(onClick = navController::navigateUp) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
           }
-        }
+        },
+        colors =
+          androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+          ),
       )
     }
   ) { padding ->

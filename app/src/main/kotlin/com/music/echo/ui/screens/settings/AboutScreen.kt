@@ -88,7 +88,7 @@ fun AboutScreen(
 
   Scaffold(
     modifier = Modifier.fillMaxSize(),
-    containerColor = MaterialTheme.colorScheme.surface,
+    containerColor = Color.Transparent,
     contentWindowInsets = WindowInsets(0, 0, 0, 0),
     topBar = {
       TopAppBar(
@@ -111,8 +111,8 @@ fun AboutScreen(
         windowInsets = TopAppBarDefaults.windowInsets,
         colors =
           TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color.Transparent,
           ),
         scrollBehavior = scrollBehavior,
       )

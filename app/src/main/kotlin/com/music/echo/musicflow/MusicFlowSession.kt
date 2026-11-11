@@ -114,7 +114,7 @@ class MusicFlowSession @Inject constructor(private val source: MusicFlowFeedSour
       val before = _state.value.items.size
       var fetches = 0
       var failure: MusicFlowFeedError? = null
-      while (_state.value.items.size == before && cursor?.hasMore == true && fetches < MAX_FETCHES_PER_LOAD) {
+      while (_state.value.items.size - before < LOAD_MORE_TARGET && cursor?.hasMore == true && fetches < MAX_FETCHES_PER_LOAD) {
         fetches++
         val outcome = fetchAndAppendLocked()
         if (outcome is FetchOutcome.Failed) {
@@ -223,9 +223,10 @@ class MusicFlowSession @Inject constructor(private val source: MusicFlowFeedSour
 
   companion object {
     private const val TAG = "MusicFlowSession"
-    const val INITIAL_TARGET = 12
+    const val INITIAL_TARGET = 40
+    const val LOAD_MORE_TARGET = 20
     const val PREFETCH_THRESHOLD = 4
-    const val MAX_FETCHES_PER_LOAD = 3
-    const val MAX_FEED_SIZE = 300
+    const val MAX_FETCHES_PER_LOAD = 8
+    const val MAX_FEED_SIZE = 600
   }
 }

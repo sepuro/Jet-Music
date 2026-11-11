@@ -864,7 +864,8 @@ fun AlbumScreen(
     },
     colors =
       androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-        containerColor = Color.Transparent
+        containerColor = Color.Transparent,
+        scrolledContainerColor = Color.Transparent
       )
   )
 }

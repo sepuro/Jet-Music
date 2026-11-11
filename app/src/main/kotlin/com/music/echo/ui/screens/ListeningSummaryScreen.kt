@@ -93,7 +93,12 @@ fun ListeningSummaryScreen(
           IconButton(onClick = { navController.navigateUp() }) {
             Icon(painter = painterResource(id = R.drawable.arrow_back), contentDescription = "Back")
           }
-        }
+        },
+        colors =
+          androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+          ),
       )
     }
   ) { paddingValues ->

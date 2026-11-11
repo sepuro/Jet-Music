@@ -98,6 +98,7 @@ fun ThemeScreen(navController: NavController, highlightKey: String? = null) {
   }
 
   Scaffold(
+    containerColor = Color.Transparent,
     topBar = {
       TopAppBar(
         title = { Text(stringResource(R.string.theme), fontWeight = FontWeight.Bold) },
@@ -112,7 +113,7 @@ fun ThemeScreen(navController: NavController, highlightKey: String? = null) {
         colors =
           TopAppBarDefaults.topAppBarColors(
             containerColor = Color.Transparent,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface
+            scrolledContainerColor = Color.Transparent
           )
       )
     }
@@ -120,7 +121,6 @@ fun ThemeScreen(navController: NavController, highlightKey: String? = null) {
     LazyColumn(
       modifier =
         Modifier.fillMaxSize()
-          .background(MaterialTheme.colorScheme.surface)
           .padding(innerPadding),
       contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp),
       verticalArrangement = Arrangement.spacedBy(24.dp)

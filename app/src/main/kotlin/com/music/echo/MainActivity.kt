@@ -16,7 +16,9 @@ import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -405,7 +407,13 @@ class MainActivity : ComponentActivity() {
     }
 
     window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
+    enableEdgeToEdge(
+      statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+      navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+    )
     WindowCompat.setDecorFitsSystemWindows(window, false)
+    window.statusBarColor = android.graphics.Color.TRANSPARENT
+    window.navigationBarColor = android.graphics.Color.TRANSPARENT
 
     listenTogetherManager.initialize()
 
@@ -1166,6 +1174,7 @@ class MainActivity : ComponentActivity() {
           LocalExpandPlayer provides expandPlayer,
         ) {
           Scaffold(
+            containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
               AnimatedVisibility(
@@ -1212,52 +1221,25 @@ class MainActivity : ComponentActivity() {
                         }
                       }
                       IconButton(onClick = { showSettingDialoge = true }) {
-                        val profileRingBrush = remember {
-                          Brush.sweepGradient(
-                            listOf(
-                              Color(0xFFFF5252),
-                              Color(0xFFFF7A8A).copy(alpha = 0.85f),
-                              Color(0xFFFF8E9E),
-                              Color(0xFFFF6B6B).copy(alpha = 0.9f),
-                              Color(0xFFFF5252)
-                            )
+                        if (accountImageUrl != null) {
+                          AsyncImage(
+                            model = accountImageUrl,
+                            contentDescription = stringResource(R.string.account),
+                            modifier = Modifier.size(24.dp).clip(CircleShape)
                           )
-                        }
-                        Box(
-                          modifier = Modifier.size(34.dp),
-                          contentAlignment = Alignment.Center
-                        ) {
-                          Box(
-                            modifier = Modifier
-                              .fillMaxSize()
-                              .border(
-                                width = 2.dp,
-                                brush = profileRingBrush,
-                                shape = CircleShape
-                              )
+                        } else {
+                          Icon(
+                            painter = painterResource(R.drawable.settings),
+                            contentDescription = stringResource(R.string.account)
                           )
-                          if (accountImageUrl != null) {
-                            AsyncImage(
-                              model = accountImageUrl,
-                              contentDescription = stringResource(R.string.account),
-                              modifier = Modifier.size(24.dp).clip(CircleShape)
-                            )
-                          } else {
-                            Icon(
-                              painter = painterResource(R.drawable.settings),
-                              contentDescription = stringResource(R.string.account),
-                              modifier = Modifier.size(18.dp),
-                              tint = MaterialTheme.colorScheme.onSurface
-                            )
-                          }
                         }
                       }
                     },
                     scrollBehavior = topAppBarScrollBehavior,
                     colors =
                       TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
                         titleContentColor = MaterialTheme.colorScheme.onSurface,
                         actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1914,14 +1896,8 @@ class MainActivity : ComponentActivity() {
       isAppearanceLightStatusBars = !isDark
       isAppearanceLightNavigationBars = !isDark
     }
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-      window.statusBarColor =
-        (if (isDark) Color.Transparent else Color.Black.copy(alpha = 0.2f)).toArgb()
-    }
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-      window.navigationBarColor =
-        (if (isDark) Color.Transparent else Color.Black.copy(alpha = 0.2f)).toArgb()
-    }
+    window.statusBarColor = android.graphics.Color.TRANSPARENT
+    window.navigationBarColor = android.graphics.Color.TRANSPARENT
   }
 
   private fun handleRecognitionIntent(

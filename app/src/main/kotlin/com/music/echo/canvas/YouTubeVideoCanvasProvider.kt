@@ -14,44 +14,50 @@ object YouTubeVideoCanvasProvider {
   private const val TAG = "YouTubeVideoCanvasProvider"
   private val cache = ConcurrentHashMap<String, CanvasArtwork>()
 
-  private suspend fun findOfficialVideoId(title: String, artist: String): String? {
+  private suspend fun findOfficialVideoIds(title: String, artist: String): List<String> {
     val cleanTitle = title
       .replace(Regex("""\s*[\(\[].*?[\)\]]\s*"""), " ")
       .replace(Regex("""\s*[-|/].*"""), " ")
       .trim()
+      .ifBlank { title.trim() }
     val cleanArtist = artist
       .split(',', '&', 'x', 'X', '/', ';')
       .firstOrNull()
       ?.replace(Regex("""\s*[\(\[].*?[\)\]]\s*"""), " ")
-      ?.trim() ?: artist.trim()
+      ?.trim()
+      ?.ifBlank { artist.trim() }
+      ?: artist.trim()
 
     val titleKeywords = cleanTitle.lowercase(Locale.ROOT)
       .split(' ')
       .map { it.trim().filter { c -> c.isLetterOrDigit() } }
-      .filter { it.length > 2 }
+      .filter { it.length >= 2 }
 
     val artistKeywords = cleanArtist.lowercase(Locale.ROOT)
       .split(' ')
       .map { it.trim().filter { c -> c.isLetterOrDigit() } }
-      .filter { it.length > 2 }
+      .filter { it.length >= 2 }
 
     val negativeKeywords = listOf(
-      "mashup", "mash up", "mash-up", "remix", "dj", "chillout", "slowed", "reverb",
-      "speed up", "sped up", "nightcore", "bass boosted", "lofi", "lo-fi", "8d audio", "8d",
-      "status", "short", "shorts", "tiktok", "reels", "cover", "reaction", "review",
-      "bts", "behind the scenes", "making of", "teaser", "trailer", "promo", "karaoke",
-      "instrumental", "lyrics", "lyric video", "lyrics video", "full audio", "audio only",
-      "jukebox", "live performance", "concert", "unplugged", "acoustic", "dance cover",
-      "choreography", "fan edit", "edit", "whatsapp status", "scene", "scenes", "dialogue",
-      "movie scene", "episode"
+      "mashup", "mash up", "mash-up", "slowed", "reverb",
+      "speed up", "sped up", "nightcore", "bass boosted", "8d audio", "8d",
+      "reaction", "review", "behind the scenes", "making of", "teaser", "trailer",
+      "karaoke", "full audio", "audio only", "whatsapp status", "movie scene", "episode"
     )
 
-    val queries = listOf(
-      "\"$cleanTitle\" $cleanArtist official music video",
-      "\"$cleanTitle\" $cleanArtist official video",
-      "$cleanTitle $cleanArtist official video",
-      "$cleanTitle $cleanArtist"
-    )
+    val queries = buildList {
+      if (cleanTitle.isNotBlank() && cleanArtist.isNotBlank()) {
+        add("$cleanTitle $cleanArtist official music video")
+        add("$cleanTitle $cleanArtist official video")
+        add("$cleanTitle $cleanArtist music video")
+        add("$cleanTitle $cleanArtist")
+      } else if (cleanTitle.isNotBlank()) {
+        add("$cleanTitle official music video")
+        add("$cleanTitle music video")
+      }
+    }.distinct()
+
+    val foundIds = LinkedHashSet<String>()
 
     for (query in queries) {
       try {
@@ -59,75 +65,154 @@ object YouTubeVideoCanvasProvider {
         val items = result?.items.orEmpty()
 
         val scored = items.mapNotNull { item ->
+          val itemId = item.id
+          if (itemId.isBlank()) return@mapNotNull null
+
           val itemTitle = item.title.lowercase(Locale.ROOT)
           val itemArtists = (item as? SongItem)?.artists.orEmpty().map { it.name.lowercase(Locale.ROOT) }
 
-          // 1. MUST NOT contain negative keywords (unless song title explicitly has them)
           val hasNegative = negativeKeywords.any { neg ->
             itemTitle.contains(neg) && !cleanTitle.lowercase(Locale.ROOT).contains(neg)
           }
           if (hasNegative) return@mapNotNull null
 
-          // 2. Strict Title Matching:
           val lowerCleanTitle = cleanTitle.lowercase(Locale.ROOT)
-          val hasExactTitle = itemTitle.contains(lowerCleanTitle)
+          val hasExactTitle = lowerCleanTitle.isNotBlank() && itemTitle.contains(lowerCleanTitle)
           val matchedTitleKeywordsCount = titleKeywords.count { kw -> itemTitle.contains(kw) }
 
-          // All keywords must match if <= 2 keywords; at least 75% if more
           val titleMatches = when {
             hasExactTitle -> true
             titleKeywords.isEmpty() -> true
-            titleKeywords.size <= 2 -> matchedTitleKeywordsCount == titleKeywords.size
-            else -> matchedTitleKeywordsCount.toFloat() / titleKeywords.size >= 0.75f
+            titleKeywords.size == 1 -> matchedTitleKeywordsCount >= 1
+            else -> matchedTitleKeywordsCount.toFloat() / titleKeywords.size >= 0.5f
           }
-          if (!titleMatches) return@mapNotNull null
 
-          // 3. Artist Matching:
           val matchesArtist = artistKeywords.isEmpty() ||
             artistKeywords.any { kw -> itemTitle.contains(kw) } ||
             itemArtists.any { a -> artistKeywords.any { kw -> a.contains(kw) } }
+
+          if (!titleMatches && !matchesArtist) return@mapNotNull null
 
           var score = 0
 
           if (hasExactTitle) {
             score += 50
           } else {
-            score += matchedTitleKeywordsCount * 15
+            score += matchedTitleKeywordsCount * 18
           }
 
           if (matchesArtist) {
-            score += 40
+            score += 35
           }
 
-          // Bonus for official music video markers
-          if (itemTitle.contains("official music video") || itemTitle.contains("official video") || itemTitle.contains("official mv")) {
-            score += 40
-          } else if (itemTitle.contains("music video") || itemTitle.contains("mv")) {
-            score += 20
+          if (
+            itemTitle.contains("official music video") ||
+            itemTitle.contains("official video") ||
+            itemTitle.contains("official mv") ||
+            itemTitle.contains("video oficial")
+          ) {
+            score += 45
+          } else if (
+            itemTitle.contains("music video") ||
+            itemTitle.contains("visualizer") ||
+            itemTitle.contains("mv") ||
+            itemTitle.contains("official")
+          ) {
+            score += 25
           }
 
-          // Bonus if SongItem is a verified YouTube Music video
           if (item is SongItem && item.isVideoSong) {
             score += 35
           }
 
-          // Strict threshold: must score at least 80 to avoid false positives
-          if (score >= 80 && item.id.isNotBlank()) {
+          if (score >= 40) {
             Pair(item, score)
           } else {
             null
           }
+        }.sortedByDescending { it.second }
+
+        for ((candidate, score) in scored.take(3)) {
+          Timber.tag(TAG).d("Candidate official video: '${candidate.title}' id=${candidate.id} (score=$score)")
+          foundIds.add(candidate.id)
         }
 
-        val best = scored.maxByOrNull { it.second }?.first
-        if (best != null) {
-          Timber.tag(TAG).d("Found verified official video: '${best.title}' with id=${best.id}")
-          return best.id
+        if (foundIds.isEmpty()) {
+          items.firstOrNull { it.id.isNotBlank() }?.let { fallbackItem ->
+            Timber.tag(TAG).d("Fallback video search result: '${fallbackItem.title}' id=${fallbackItem.id}")
+            foundIds.add(fallbackItem.id)
+          }
         }
+
+        if (foundIds.size >= 2) break
       } catch (e: Exception) {
         Timber.tag(TAG).w(e, "Error searching for official video query: $query")
       }
     }
+    return foundIds.toList()
+  }
+
+  private suspend fun resolveVideoStreamForId(
+    targetVideoId: String,
+    fallbackDurationSec: Long
+  ): Pair<String, Long>? {
+    var totalDurationSec = fallbackDurationSec.coerceAtLeast(0L)
+
+    val clients = listOf(
+      YouTubeClient.VISIONOS,
+      YouTubeClient.TVHTML5,
+      YouTubeClient.ANDROID_VR_1_65_10,
+      YouTubeClient.ANDROID_VR_1_43_32,
+      YouTubeClient.IOS,
+      YouTubeClient.WEB_REMIX
+    )
+
+    for (client in clients) {
+      try {
+        val response = YouTube.player(videoId = targetVideoId, client = client).getOrNull()
+        val streamingData = response?.streamingData ?: continue
+
+        if (totalDurationSec <= 0L) {
+          totalDurationSec = response.videoDetails?.lengthSeconds?.toLongOrNull() ?: 0L
+        }
+
+        val formats = (streamingData.formats.orEmpty() + streamingData.adaptiveFormats)
+          .filter { format ->
+            val isVideo = format.width != null || format.height != null || format.mimeType.startsWith("video/")
+            val hasUrl = !format.url.isNullOrBlank()
+            isVideo && hasUrl
+          }
+
+        val candidate = formats
+          .filter { it.mimeType.contains("mp4", ignoreCase = true) && (it.height ?: 0) in 720..1440 }
+          .maxByOrNull { it.height ?: 0 }
+          ?: formats.filter { (it.height ?: 0) in 720..1440 }.maxByOrNull { it.height ?: 0 }
+          ?: formats.filter { it.mimeType.contains("mp4", ignoreCase = true) && (it.height ?: 0) >= 360 }
+            .maxByOrNull { it.height ?: 0 }
+          ?: formats.filter { it.mimeType.contains("mp4", ignoreCase = true) }.maxByOrNull { it.height ?: 0 }
+          ?: formats.maxByOrNull { it.height ?: 0 }
+
+        val url = candidate?.url
+        if (!url.isNullOrBlank()) {
+          Timber.tag(TAG).d("Found (${candidate.height}p) video stream via InnerTube (${client.clientName}) for $targetVideoId")
+          return Pair(url, totalDurationSec)
+        }
+      } catch (e: Exception) {
+        Timber.tag(TAG).w(e, "InnerTube client ${client.clientName} failed for $targetVideoId")
+      }
+    }
+
+    try {
+      val newPipeResult = NewPipeExtractor.getVideoUrlAndDuration(targetVideoId)
+      if (newPipeResult != null && newPipeResult.first.isNotBlank()) {
+        val resolvedDur = if (totalDurationSec > 0L) totalDurationSec else newPipeResult.second
+        Timber.tag(TAG).d("Found video stream via NewPipe for $targetVideoId")
+        return Pair(newPipeResult.first, resolvedDur)
+      }
+    } catch (e: Exception) {
+      Timber.tag(TAG).w(e, "NewPipeExtractor failed for $targetVideoId")
+    }
+
     return null
   }
 
@@ -141,101 +226,44 @@ object YouTubeVideoCanvasProvider {
     cache[videoId]?.let { return it }
 
     return withContext(Dispatchers.IO) {
-      val officialVideoId = if (!title.isNullOrBlank()) {
-        findOfficialVideoId(title, artist.orEmpty())
-      } else null
+      val officialVideoIds = if (!title.isNullOrBlank()) {
+        findOfficialVideoIds(title, artist.orEmpty())
+      } else {
+        emptyList()
+      }
 
-      val targetVideoId = officialVideoId ?: videoId
-      Timber.tag(TAG).d("Resolving canvas stream for targetVideoId: $targetVideoId (original: $videoId)")
+      // Try official music video candidates first (so ATV audio tracks get upgraded to OMV video),
+      // then fall back to the original videoId if needed.
+      val candidateIds = (officialVideoIds + listOf(videoId)).distinct()
+      Timber.tag(TAG).d("Resolving canvas stream across candidates=$candidateIds (original: $videoId)")
 
-      var videoUrl: String? = null
-      var totalDurationSec: Long = if (targetVideoId == videoId) (durationSec?.takeIf { it > 0 } ?: 0L) else 0L
+      var resolvedVideoUrl: String? = null
+      var resolvedTargetId: String = videoId
+      var totalDurationSec: Long = durationSec?.takeIf { it > 0 } ?: 0L
 
-      // Try InnerTube direct clients (VISIONOS first as it serves complete files)
-      val clients = listOf(
-        YouTubeClient.VISIONOS,
-        YouTubeClient.TVHTML5,
-        YouTubeClient.ANDROID_VR_1_65_10,
-        YouTubeClient.ANDROID_VR_1_43_32
-      )
-
-      for (client in clients) {
-        try {
-          val response = YouTube.player(videoId = targetVideoId, client = client).getOrNull()
-          val streamingData = response?.streamingData ?: continue
-
-          if (totalDurationSec <= 0L) {
-            totalDurationSec = response.videoDetails?.lengthSeconds?.toLongOrNull() ?: 0L
-          }
-
-          val formats = (streamingData.formats.orEmpty() + streamingData.adaptiveFormats)
-            .filter { format ->
-              val isVideo = format.width != null || format.mimeType.startsWith("video/")
-              val hasUrl = !format.url.isNullOrBlank()
-              isVideo && hasUrl
-            }
-
-          // Prioritize high quality: 1080p MP4, then 1080p, then 720p MP4, then 720p
-          val candidate = formats
-            .filter { it.mimeType.contains("mp4", ignoreCase = true) && (it.height ?: 0) in 1080..1440 }
-            .maxByOrNull { it.height ?: 0 }
-            ?: formats.filter { (it.height ?: 0) in 1080..1440 }.maxByOrNull { it.height ?: 0 }
-            ?: formats.filter { it.mimeType.contains("mp4", ignoreCase = true) && (it.height ?: 0) in 720..1079 }
-              .maxByOrNull { it.height ?: 0 }
-            ?: formats.filter { (it.height ?: 0) in 720..1079 }.maxByOrNull { it.height ?: 0 }
-            ?: formats.filter { it.mimeType.contains("mp4", ignoreCase = true) }.maxByOrNull { it.height ?: 0 }
-            ?: formats.maxByOrNull { it.height ?: 0 }
-
-          if (candidate != null && !candidate.url.isNullOrBlank()) {
-            videoUrl = candidate.url
-            Timber.tag(TAG).d("Found high quality (${candidate.height}p) stream via InnerTube (${client.clientName}) for $targetVideoId: $videoUrl")
-            break
-          }
-        } catch (e: Exception) {
-          Timber.tag(TAG).w(e, "InnerTube client ${client.clientName} failed for targetVideoId: $targetVideoId")
+      for (candidateId in candidateIds) {
+        cache[candidateId]?.let { cached ->
+          cache[videoId] = cached
+          return@withContext cached
+        }
+        val initialDuration = if (candidateId == videoId) totalDurationSec else 0L
+        val streamResult = resolveVideoStreamForId(candidateId, initialDuration)
+        if (streamResult != null) {
+          resolvedVideoUrl = streamResult.first
+          totalDurationSec = streamResult.second
+          resolvedTargetId = candidateId
+          break
         }
       }
 
-      // Fall back to NewPipeExtractor if direct clients didn't yield a stream
-      if (videoUrl.isNullOrBlank()) {
-        try {
-          val newPipeResult = NewPipeExtractor.getVideoUrlAndDuration(targetVideoId)
-          if (newPipeResult != null) {
-            videoUrl = newPipeResult.first
-            if (totalDurationSec <= 0L) {
-              totalDurationSec = newPipeResult.second
-            }
-            Timber.tag(TAG).d("Found video stream via NewPipe for $targetVideoId: $videoUrl")
-          }
-        } catch (e: Exception) {
-          Timber.tag(TAG).w(e, "NewPipeExtractor failed for targetVideoId: $targetVideoId")
-        }
-      }
-
-      // If official video failed to resolve, try original videoId as fallback
-      if (videoUrl.isNullOrBlank() && targetVideoId != videoId) {
-        try {
-          val newPipeResult = NewPipeExtractor.getVideoUrlAndDuration(videoId)
-          if (newPipeResult != null) {
-            videoUrl = newPipeResult.first
-            if (totalDurationSec <= 0L) {
-              totalDurationSec = newPipeResult.second
-            }
-            Timber.tag(TAG).d("Found fallback video stream via NewPipe for $videoId: $videoUrl")
-          }
-        } catch (e: Exception) {
-          Timber.tag(TAG).w(e, "Fallback NewPipeExtractor failed for videoId: $videoId")
-        }
-      }
-
-      if (videoUrl.isNullOrBlank()) {
-        Timber.tag(TAG).w("No video stream found for canvas targetVideoId: $targetVideoId")
+      if (resolvedVideoUrl.isNullOrBlank()) {
+        Timber.tag(TAG).w("No video stream found for any candidate of videoId: $videoId")
         return@withContext null
       }
 
-      // Calculate 5-second clip from the center of the video
+      // Calculate 15-second clip around the center of the video for rich full-screen playback
       val totalDurationMs = if (totalDurationSec > 0) totalDurationSec * 1000L else 180_000L
-      val clipDurationMs = 5_000L
+      val clipDurationMs = 15_000L
       val centerMs = totalDurationMs / 2
       val startMs = (centerMs - clipDurationMs / 2).coerceAtLeast(0L)
       val endMs = (startMs + clipDurationMs).coerceAtMost(totalDurationMs)
@@ -243,15 +271,15 @@ object YouTubeVideoCanvasProvider {
       val artwork = CanvasArtwork(
         name = title,
         artist = artist,
-        videoUrl = videoUrl,
-        animated = videoUrl,
+        videoUrl = resolvedVideoUrl,
+        animated = resolvedVideoUrl,
         clipStartMs = startMs,
         clipEndMs = endMs
       )
 
       cache[videoId] = artwork
-      if (targetVideoId != videoId) {
-        cache[targetVideoId] = artwork
+      if (resolvedTargetId != videoId) {
+        cache[resolvedTargetId] = artwork
       }
       artwork
     }

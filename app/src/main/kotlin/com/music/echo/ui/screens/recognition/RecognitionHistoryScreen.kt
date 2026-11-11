@@ -178,7 +178,12 @@ fun RecognitionHistoryScreen(navController: NavController) {
               )
             }
           }
-        }
+        },
+        colors =
+          androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+          ),
       )
     }
   ) { paddingValues ->

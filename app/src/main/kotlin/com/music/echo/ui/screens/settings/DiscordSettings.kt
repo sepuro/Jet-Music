@@ -343,7 +343,7 @@ fun DiscordSettings(
 
   Scaffold(
     modifier = Modifier.fillMaxSize(),
-    containerColor = MaterialTheme.colorScheme.surface,
+    containerColor = Color.Transparent,
     contentWindowInsets = WindowInsets(0, 0, 0, 0),
     snackbarHost = { SnackbarHost(snackbarHostState) },
     topBar = {
@@ -391,8 +391,8 @@ fun DiscordSettings(
         },
         colors =
           TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color.Transparent,
           ),
         scrollBehavior = scrollBehavior,
       )

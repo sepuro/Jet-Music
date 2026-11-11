@@ -369,6 +369,11 @@ fun UpdateSettings(
       IconButton(onClick = navController::navigateUp, onLongClick = navController::backToMain) {
         Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
       }
-    }
+    },
+    colors =
+      androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+      ),
   )
 }

@@ -75,7 +75,8 @@ fun TopSearch(
   shape: Shape? = null,
   colors: TopAppBarColors =
     TopAppBarDefaults.topAppBarColors(
-      containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+      containerColor = Color.Transparent,
+      scrolledContainerColor = Color.Transparent
     ),
   scrollBehavior: TopAppBarScrollBehavior? = null,
   windowInsets: WindowInsets = WindowInsets.systemBars,

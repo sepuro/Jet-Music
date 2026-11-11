@@ -1129,10 +1129,9 @@ fun ArtistScreen(
       }
     },
     colors =
-      if (transparentAppBar) {
-        TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-      } else {
-        TopAppBarDefaults.topAppBarColors()
-      }
+      TopAppBarDefaults.topAppBarColors(
+        containerColor = Color.Transparent,
+        scrolledContainerColor = Color.Transparent
+      )
   )
 }

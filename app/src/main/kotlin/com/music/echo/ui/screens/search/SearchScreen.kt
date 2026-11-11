@@ -400,7 +400,7 @@ fun SearchScreen(
       Column(
         modifier =
           Modifier.fillMaxWidth()
-            .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
+            .background(Color.Transparent)
             .windowInsetsPadding(WindowInsets.statusBars)
       ) {
         // Apple Music Header: Large title "Search" and account avatar
@@ -613,7 +613,7 @@ fun SearchScreen(
         }
       }
     },
-    containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.background,
+    containerColor = Color.Transparent,
   ) { paddingValues ->
     Box(
       modifier =

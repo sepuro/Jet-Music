@@ -114,14 +114,14 @@ jobs:
       run: |
         VERSION=$(grep 'versionName =' app/build.gradle.kts | head -1 | cut -d'"' -f2)
         TAG="v${VERSION}"
-        TITLE="Jet Music v${VERSION} — Clean Package ID, v2/v3 Signed APK & Optimized Size"
+        TITLE="Jet Music v${VERSION} — Edge-to-Edge Transparent UI & Expanded Music Flow Video Feed"
         NOTES="## Jet Music v${VERSION}
 
-        ### Novedades y Correcciones Críticas de Empaquetado e Instalación
-        - **Identificador de Paquete Exclusivo (\`app.jetmusic.android\`)**: Eliminado cualquier conflicto con instalaciones residuales (\`INSTALL_FAILED_UPDATE_INCOMPATIBLE\` / \`INSTALL_FAILED_CONFLICTING_PROVIDER\`) y unificadas todas las authorities dinámicas (\`\${applicationId}.fileprovider\`, \`\${applicationId}.artwork\`, \`\${applicationId}.com.dpi.DensityScaler\`).
-        - **Firma Criptográfica Nativa Persistente (v1 + v2 + v3)**: Habilitados explícitamente \`enableV1Signing\`, \`enableV2Signing\` y \`enableV3Signing\` con keystore persistente y verificación estricta en CI mediante \`apksigner verify --verbose --print-certs\` y \`aapt2 dump badging\`.
-        - **Optimización de Tamaño Nativo (ARM64 + ARMv7)**: Filtrados los binarios de emulador (\`x86\`, \`x86_64\`) para reducir drásticamente el peso del APK manteniendo \`extractNativeLibs=\"true\"\` y \`useLegacyPackaging = true\`.
-        - **Blindaje R8 / ProGuard Completo**: Reglas \`-keep\` exhaustivas para todos los módulos (\`innertube\`, \`innertubex\`, \`media3\`, \`ktor\`, \`gson\`, \`retrofit2\`, \`kotlinx.serialization\`, \`dsp\`, \`usbaudio\`, \`canvas\`, \`lyrics\`)."
+        ### Novedades de Interfaz (Edge-to-Edge) y Music Flow
+        - **Fondo Edge-to-Edge Real y Cabeceras Transparentes**: Eliminada cualquier barra negra superior en \`MainActivity\` y en todas las pantallas (\`TopAppBar\`, \`LargeTopAppBar\`, \`MediumTopAppBar\`) con \`enableEdgeToEdge()\` y \`Color.Transparent\` para que el fondo ambiental fluya desde \`top = 0.dp\`.
+        - **Inicio Minimalista**: Eliminada la fila de chips de estados de ánimo en \`HomeScreen\` y eliminado el halo rojo del icono de Configuración en la cabecera superior.
+        - **Music Flow de Alta Densidad con Video Real**: Ampliado el lote inicial (40+ pistas), paginación infinita automática (\`loadMoreVideos()\`) con pre-resolución de streams en segundo plano y fallback inteligente de pistas de audio (ATV) a videos musicales oficiales (OMV / Canvas) a pantalla completa.
+        - **Empaquetado y Firma v1/v2/v3**: Compilado con R8 Full Mode para \`app.jetmusic.android\` y verificado con \`apksigner\` y \`aapt2\`."
 
         if gh release view "$TAG" >/dev/null 2>&1; then
           gh release upload "$TAG" "release-assets/Jet-Music-v${VERSION}-release.apk" --clobber

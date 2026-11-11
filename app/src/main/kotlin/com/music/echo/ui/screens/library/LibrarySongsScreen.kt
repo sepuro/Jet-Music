@@ -344,7 +344,8 @@ fun LibrarySongsScreen(
           },
           colors =
             TopAppBarDefaults.topAppBarColors(
-              containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+              containerColor = Color.Transparent,
+              scrolledContainerColor = Color.Transparent
             ),
           windowInsets = WindowInsets(0.dp)
         )

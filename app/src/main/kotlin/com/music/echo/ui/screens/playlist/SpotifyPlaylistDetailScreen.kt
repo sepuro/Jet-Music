@@ -384,7 +384,8 @@ fun SpotifyPlaylistDetailScreen(
         }
       },
       colors = TopAppBarDefaults.topAppBarColors(
-        containerColor = if (transparentAppBar) Color.Transparent else MaterialTheme.colorScheme.surface
+        containerColor = Color.Transparent,
+        scrolledContainerColor = Color.Transparent
       ),
       scrollBehavior = scrollBehavior,
     )

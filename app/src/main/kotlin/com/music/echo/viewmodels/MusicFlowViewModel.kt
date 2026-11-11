@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import echo.music.iad1tya.R
+import echo.music.iad1tya.canvas.YouTubeVideoCanvasProvider
 import echo.music.iad1tya.db.MusicDatabase
 import echo.music.iad1tya.db.entities.LyricsEntity
 import echo.music.iad1tya.db.entities.RecommendationExclusionEntity
@@ -24,6 +25,7 @@ import echo.music.iad1tya.musicflow.PlayerConnectionMusicFlowPlayer
 import echo.music.iad1tya.musicflow.toMusicFlowSongItem
 import echo.music.iad1tya.musicflow.trackKey
 import echo.music.iad1tya.playback.PlayerConnection
+import echo.music.iad1tya.ui.player.CanvasArtworkPlaybackCache
 import echo.music.iad1tya.utils.dataStore
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -215,6 +217,7 @@ constructor(
     }
     prefetchIfNeeded()
     prefetchUpcomingLyrics(session.state.value.items, session.state.value.selectedIndex + 1)
+    prefetchUpcomingVideos(session.state.value.items, session.state.value.selectedIndex)
   }
 
   fun onPageSettled(index: Int) {
@@ -224,11 +227,16 @@ constructor(
       if (items.isNotEmpty()) prefetchIfNeeded()
       return
     }
-    if (index == session.state.value.selectedIndex) return
+    if (index == session.state.value.selectedIndex) {
+      prefetchIfNeeded()
+      prefetchUpcomingVideos(items, index)
+      return
+    }
     session.select(index)
     request(item.songId, playWhenReady = preferences.value.autoplay)
     prefetchIfNeeded()
     prefetchUpcomingLyrics(items, index + 1)
+    prefetchUpcomingVideos(items, index)
   }
 
   fun togglePlayPause() {
@@ -269,6 +277,8 @@ constructor(
   }
 
   fun loadMoreIfNeeded() = prefetchIfNeeded()
+
+  fun loadMoreVideos() = prefetchIfNeeded()
 
   fun notInterested(item: MusicFlowItem, persist: Boolean) {
     session.hide(item.songId)
@@ -347,9 +357,37 @@ constructor(
     if (!state.hasMore || state.isLoadingMore || state.isInitialLoading) return
     if (state.items.size - state.selectedIndex > MusicFlowSession.PREFETCH_THRESHOLD) return
     val generation = session.generation
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       val appended = session.loadMore()
-      if (session.generation == generation) coordinator?.appendIfOwned(appended)
+      if (session.generation == generation) {
+        coordinator?.appendIfOwned(appended)
+        prefetchUpcomingVideos(session.state.value.items, session.state.value.selectedIndex)
+      }
+    }
+  }
+
+  private fun prefetchUpcomingVideos(items: List<MusicFlowItem>, startIndex: Int) {
+    val prefs = preferences.value
+    if (!prefs.animatedBackground || prefs.dataSaver) return
+    val candidates = items.drop(startIndex.coerceAtLeast(0)).take(VIDEO_PREFETCH_COUNT)
+    candidates.forEach { item ->
+      if (CanvasArtworkPlaybackCache.get(item.songId) != null) return@forEach
+      viewModelScope.launch(Dispatchers.IO) {
+        try {
+          val artwork =
+            YouTubeVideoCanvasProvider.getCanvasForVideo(
+              videoId = item.songId,
+              title = item.song.title,
+              artist = item.song.artists.joinToString(", ") { it.name },
+              durationSec = item.song.duration?.toLong(),
+            )
+          if (artwork != null) {
+            CanvasArtworkPlaybackCache.put(item.songId, artwork)
+          }
+        } catch (e: Exception) {
+          if (e is CancellationException) throw e
+        }
+      }
     }
   }
 
@@ -394,5 +432,6 @@ constructor(
     const val SETTLE_DEBOUNCE_MS = 180L
     const val ERROR_GRACE_MS = 8_000L
     const val MAX_AUTO_ADVANCES = 3
+    const val VIDEO_PREFETCH_COUNT = 5
   }
 }

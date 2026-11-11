@@ -394,7 +394,8 @@ fun LocalSongScreen(
           },
           colors =
             TopAppBarDefaults.topAppBarColors(
-              containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+              containerColor = Color.Transparent,
+              scrolledContainerColor = Color.Transparent
             ),
           windowInsets = TopAppBarDefaults.windowInsets,
         )
@@ -478,8 +479,8 @@ fun LocalSongScreen(
           },
           colors =
             TopAppBarDefaults.largeTopAppBarColors(
-              containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
-              scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+              containerColor = Color.Transparent,
+              scrolledContainerColor = Color.Transparent,
             ),
           scrollBehavior = scrollBehavior,
           windowInsets = TopAppBarDefaults.windowInsets,
@@ -739,7 +740,8 @@ fun LocalSongScreen(
           },
           colors =
             TopAppBarDefaults.topAppBarColors(
-              containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+              containerColor = Color.Transparent,
+              scrolledContainerColor = Color.Transparent
             ),
           windowInsets = WindowInsets(0.dp),
         )
@@ -750,7 +752,7 @@ fun LocalSongScreen(
       modifier =
         Modifier.fillMaxSize()
           .nestedScroll(scrollBehavior.nestedScrollConnection),
-      containerColor = MaterialTheme.colorScheme.surface,
+      containerColor = Color.Transparent,
       topBar = topBarContent,
     ) { paddingValues ->
       mainContent(paddingValues)

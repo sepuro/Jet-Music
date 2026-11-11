@@ -1025,21 +1025,9 @@ fun HomeScreen(
 
       LazyColumn(
         state = lazylistState,
-        modifier = Modifier.hapticScrollEdge(lazylistState),
+        modifier = Modifier.fillMaxSize().hapticScrollEdge(lazylistState),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
       ) {
-        item(key = "chips_row", contentType = "chips_row") {
-          ChipsRow(
-            chips =
-              homePage
-                ?.chips
-                ?.filter { !it.title.equals("Uploaded", ignoreCase = true) }
-                ?.map { it to it.title } ?: emptyList(),
-            currentValue = selectedChip,
-            onValueUpdate = { viewModel.toggleChip(it) }
-          )
-        }
-
         if (selectedChip == null && !isWrappedDismissed) {
           item(key = "echo_wrapped_banner", contentType = "banner") {
             com.music.echo.ui.screens.wrapped.WrappedBannerCard(
@@ -1058,27 +1046,6 @@ fun HomeScreen(
             newEpisodes = newEpisodes,
             navController = navController,
           )
-        }
-
-        if (isLoading && homePage?.chips.isNullOrEmpty()) {
-          item(key = "chips_shimmer", contentType = "chips_shimmer") {
-            ShimmerHost {
-              Row(
-                modifier =
-                  Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-              ) {
-                repeat(5) {
-                  TextPlaceholder(
-                    height = 30.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.width(72.dp)
-                  )
-                }
-              }
-            }
-          }
         }
 
         homeSections.forEach { section ->

@@ -151,48 +151,59 @@ fun AmbientCanvasBackground(
       }
 
     val validated =
-      if (fetched?.clipStartMs != null) {
-        fetched
-      } else {
-        fetched?.takeIf { artwork ->
-          val resultArtist = artwork.artist
-          val artistMatches =
-            if (resultArtist != null && artistNameRaw.isNotBlank()) {
-              val normalizedResult = normalizeCanvasArtistName(resultArtist)
-              val normalizedRequested = normalizeCanvasArtistName(artistNameRaw)
-              resultArtist.contains(artistNameRaw, ignoreCase = true) ||
-                artistNameRaw.contains(resultArtist, ignoreCase = true) ||
-                normalizedResult.contains(normalizedRequested, ignoreCase = true) ||
-                normalizedRequested.contains(normalizedResult, ignoreCase = true)
-            } else {
-              true
-            }
+      withContext(Dispatchers.IO) {
+        val candidate =
+          if (fetched?.clipStartMs != null) {
+            fetched
+          } else {
+            fetched?.takeIf { artwork ->
+              val resultArtist = artwork.artist
+              val artistMatches =
+                if (resultArtist != null && artistNameRaw.isNotBlank()) {
+                  val normalizedResult = normalizeCanvasArtistName(resultArtist)
+                  val normalizedRequested = normalizeCanvasArtistName(artistNameRaw)
+                  resultArtist.contains(artistNameRaw, ignoreCase = true) ||
+                    artistNameRaw.contains(resultArtist, ignoreCase = true) ||
+                    normalizedResult.contains(normalizedRequested, ignoreCase = true) ||
+                    normalizedRequested.contains(normalizedResult, ignoreCase = true)
+                } else {
+                  true
+                }
 
-          val canvasAlbumName = artwork.albumName
-          val canvasSongName = artwork.name
-          val titleMatches =
-            when {
-              canvasAlbumName != null && albumName.isNotBlank() -> {
-                val normalizedCanvasAlbum = normalizeCanvasSongTitle(canvasAlbumName)
-                val normalizedRequestedAlbum = normalizeCanvasSongTitle(albumName)
-                canvasAlbumName.contains(albumName, ignoreCase = true) ||
-                  albumName.contains(canvasAlbumName, ignoreCase = true) ||
-                  normalizedCanvasAlbum.contains(normalizedRequestedAlbum, ignoreCase = true) ||
-                  normalizedRequestedAlbum.contains(normalizedCanvasAlbum, ignoreCase = true)
-              }
-              canvasSongName != null && songTitleRaw.isNotBlank() -> {
-                val normalizedCanvasSong = normalizeCanvasSongTitle(canvasSongName)
-                val normalizedRequestedTitle = normalizeCanvasSongTitle(songTitleRaw)
-                canvasSongName.contains(songTitleRaw, ignoreCase = true) ||
-                  songTitleRaw.contains(canvasSongName, ignoreCase = true) ||
-                  normalizedCanvasSong.contains(normalizedRequestedTitle, ignoreCase = true) ||
-                  normalizedRequestedTitle.contains(normalizedCanvasSong, ignoreCase = true)
-              }
-              else -> true
-            }
+              val canvasAlbumName = artwork.albumName
+              val canvasSongName = artwork.name
+              val titleMatches =
+                when {
+                  canvasAlbumName != null && albumName.isNotBlank() -> {
+                    val normalizedCanvasAlbum = normalizeCanvasSongTitle(canvasAlbumName)
+                    val normalizedRequestedAlbum = normalizeCanvasSongTitle(albumName)
+                    canvasAlbumName.contains(albumName, ignoreCase = true) ||
+                      albumName.contains(canvasAlbumName, ignoreCase = true) ||
+                      normalizedCanvasAlbum.contains(normalizedRequestedAlbum, ignoreCase = true) ||
+                      normalizedRequestedAlbum.contains(normalizedCanvasAlbum, ignoreCase = true)
+                  }
+                  canvasSongName != null && songTitleRaw.isNotBlank() -> {
+                    val normalizedCanvasSong = normalizeCanvasSongTitle(canvasSongName)
+                    val normalizedRequestedTitle = normalizeCanvasSongTitle(songTitleRaw)
+                    canvasSongName.contains(songTitleRaw, ignoreCase = true) ||
+                      songTitleRaw.contains(canvasSongName, ignoreCase = true) ||
+                      normalizedCanvasSong.contains(normalizedRequestedTitle, ignoreCase = true) ||
+                      normalizedRequestedTitle.contains(normalizedCanvasSong, ignoreCase = true)
+                  }
+                  else -> true
+                }
 
-          artistMatches && titleMatches
-        }
+              artistMatches && titleMatches
+            }
+          }
+
+        candidate?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
+          ?: YouTubeVideoCanvasProvider.getCanvasForVideo(
+            videoId = targetId,
+            title = songTitleRaw,
+            artist = artistNameRaw,
+            durationSec = resolvedDurationSec,
+          )
       }
 
     canvasArtwork = validated

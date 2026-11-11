@@ -61,7 +61,12 @@ fun NavidromeLoginScreen(
           IconButton(onClick = navController::navigateUp) {
             Icon(painterResource(R.drawable.arrow_back), contentDescription = "Back")
           }
-        }
+        },
+        colors =
+          androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+          ),
       )
     }
   ) { padding ->
@@ -272,7 +277,12 @@ fun NavidromeDashboardScreen(
           IconButton(onClick = navController::navigateUp) {
             Icon(painterResource(R.drawable.arrow_back), contentDescription = "Back")
           }
-        }
+        },
+        colors =
+          androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+          ),
       )
     }
   ) { padding ->

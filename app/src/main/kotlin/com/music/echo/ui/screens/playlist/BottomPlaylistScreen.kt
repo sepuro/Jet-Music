@@ -482,7 +482,12 @@ fun BottomPlaylistScreen(
             Icon(painter = painterResource(R.drawable.search), contentDescription = null)
           }
         }
-      }
+      },
+      colors =
+        androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+          containerColor = Color.Transparent,
+          scrolledContainerColor = Color.Transparent
+        )
     )
   }
 }

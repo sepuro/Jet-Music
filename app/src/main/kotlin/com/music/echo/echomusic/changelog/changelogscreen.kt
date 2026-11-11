@@ -286,6 +286,11 @@ fun ChangelogScreen(
             Icon(painterResource(R.drawable.arrow_back), null)
           }
         },
+        colors =
+          androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+          ),
         scrollBehavior = scrollBehavior
       )
     }

@@ -626,13 +626,10 @@ fun OnlinePlaylistScreen(
         }
       },
       colors =
-        if (transparentAppBar && !isSearching && !inSelectMode) {
-          androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Transparent
-          )
-        } else {
-          androidx.compose.material3.TopAppBarDefaults.topAppBarColors()
-        }
+        androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+          containerColor = Color.Transparent,
+          scrolledContainerColor = Color.Transparent
+        )
     )
 
     SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))

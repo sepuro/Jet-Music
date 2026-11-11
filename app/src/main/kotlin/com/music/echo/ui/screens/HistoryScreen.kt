@@ -506,6 +506,11 @@ fun HistoryScreen(
           Icon(painter = painterResource(R.drawable.search), contentDescription = null)
         }
       }
-    }
+    },
+    colors =
+      TopAppBarDefaults.topAppBarColors(
+        containerColor = Color.Transparent,
+        scrolledContainerColor = Color.Transparent,
+      ),
   )
 }

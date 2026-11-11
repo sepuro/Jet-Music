@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -487,6 +488,11 @@ fun SettingsScreen(
       IconButton(onClick = navController::navigateUp, onLongClick = navController::backToMain) {
         Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
       }
-    }
+    },
+    colors =
+      TopAppBarDefaults.topAppBarColors(
+        containerColor = Color.Transparent,
+        scrolledContainerColor = Color.Transparent
+      )
   )
 }

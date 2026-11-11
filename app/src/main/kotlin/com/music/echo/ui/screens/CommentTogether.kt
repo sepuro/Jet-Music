@@ -89,7 +89,8 @@ fun CommentTogetherScreen(navController: NavController) {
         },
         colors =
           TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
             titleContentColor = MaterialTheme.colorScheme.onSurface
           )
       )

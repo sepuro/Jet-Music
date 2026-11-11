@@ -86,10 +86,8 @@ constructor(
 
   private suspend fun List<SongItem>.applyContentFilters(): List<SongItem> {
     val preferences = context.dataStore.data.first()
-    val hideVideos =
-      (preferences[HideVideoSongsKey] ?: false) || (preferences[DataSaverEnabledKey] ?: false)
     return filterExplicit(preferences[HideExplicitKey] ?: false)
-      .filterVideoSongs(hideVideos)
+      .filterVideoSongs(false)
       .filterBlockedArtists()
   }
 
@@ -97,9 +95,7 @@ constructor(
 
   private inner class RadioCursor(private val nowPlaying: SongItem?) : MusicFlowCursor {
     private var seeds: ArrayDeque<Seed>? = null
-    private var tailEndpoint: WatchEndpoint? = null
-    private var tailContinuation: String? = null
-    private var tailSource = MusicFlowSource.CATALOG
+    private val continuationQueue = ArrayDeque<Triple<WatchEndpoint, String, MusicFlowSource>>()
     private var exhausted = false
 
     override val hasMore: Boolean
@@ -116,9 +112,9 @@ constructor(
           runCatching { radio(WatchEndpoint(videoId = seed.song.id, playlistId = "RDAMVM${seed.song.id}"), null) }
             .onSuccess { (songs, endpoint, continuation) ->
               batch += songs.map { MusicFlowItem(it, seed.source) }
-              tailEndpoint = endpoint
-              tailContinuation = continuation
-              tailSource = seed.source
+              if (continuation != null) {
+                continuationQueue.addLast(Triple(endpoint, continuation, seed.source))
+              }
             }
             .onFailure {
               if (it is CancellationException) throw it
@@ -127,28 +123,25 @@ constructor(
             }
         }
 
-        if (batch.isEmpty()) {
-          val endpoint = tailEndpoint
-          val continuation = tailContinuation
-          if (endpoint != null && continuation != null) {
-            runCatching { radio(endpoint, continuation) }
-              .onSuccess { (songs, nextEndpoint, nextContinuation) ->
-                batch += songs.map { MusicFlowItem(it, tailSource) }
-                tailEndpoint = nextEndpoint
-                tailContinuation = nextContinuation
+        repeat(CONTINUATIONS_PER_BATCH) {
+          val (endpoint, continuation, source) = continuationQueue.removeFirstOrNull() ?: return@repeat
+          runCatching { radio(endpoint, continuation) }
+            .onSuccess { (songs, nextEndpoint, nextContinuation) ->
+              batch += songs.map { MusicFlowItem(it, source) }
+              if (nextContinuation != null) {
+                continuationQueue.addLast(Triple(nextEndpoint, nextContinuation, source))
               }
-              .onFailure {
-                if (it is CancellationException) throw it
-                networkFailure = it
-                tailContinuation = null
-              }
-          }
+            }
+            .onFailure {
+              if (it is CancellationException) throw it
+              networkFailure = it
+            }
         }
 
         if (batch.isEmpty() && networkFailure != null) {
           throw MusicFlowOfflineException(networkFailure)
         }
-        if (queue.isEmpty() && tailContinuation == null) exhausted = true
+        if (queue.isEmpty() && continuationQueue.isEmpty()) exhausted = true
         interleave(batch)
       }
 
@@ -167,31 +160,45 @@ constructor(
           .map { it.seed(MusicFlowSource.LIKED) }
       val quickPicks =
         database.quickPicks().first().take(SEED_LIMIT).map { it.seed(MusicFlowSource.QUICK_PICKS) }
-      val personal =
+      val catalog = catalogSeeds()
+      val combined =
         listOfNotNull(nowPlaying?.let { Seed(it, MusicFlowSource.NOW_PLAYING) }) +
-          interleave(listOf(recent, liked, quickPicks))
-      val seeds = personal.ifEmpty { catalogSeeds() }
-      return ArrayDeque(seeds.distinctBy { it.song.id })
+          interleave(listOf(recent, liked, quickPicks, catalog))
+      return ArrayDeque(combined.distinctBy { it.song.id })
     }
 
-    private suspend fun catalogSeeds(): List<Seed> =
-      runCatching { YouTube.home().getOrThrow() }
-        .getOrNull()
-        ?.sections
-        ?.flatMap { section -> section.items.filterIsInstance<SongItem>() }
-        ?.applyContentFilters()
-        ?.take(SEED_LIMIT)
-        ?.map { Seed(it, MusicFlowSource.CATALOG) }
-        .orEmpty()
+    private suspend fun catalogSeeds(): List<Seed> {
+      val homeSongs =
+        runCatching { YouTube.home().getOrThrow() }
+          .getOrNull()
+          ?.sections
+          ?.flatMap { section -> section.items.filterIsInstance<SongItem>() }
+          ?.applyContentFilters()
+          .orEmpty()
+
+      val trendingVideoSongs =
+        runCatching { YouTube.search("official music video", YouTube.SearchFilter.FILTER_VIDEO).getOrThrow() }
+          .getOrNull()
+          ?.items
+          ?.filterIsInstance<SongItem>()
+          ?.applyContentFilters()
+          .orEmpty()
+
+      return (homeSongs + trendingVideoSongs)
+        .distinctBy { it.id }
+        .take(SEED_LIMIT * 2)
+        .map { Seed(it, MusicFlowSource.CATALOG) }
+    }
 
     private fun Song.seed(source: MusicFlowSource) = Seed(toMusicFlowSongItem(), source)
   }
 
   private companion object {
     const val TAG = "MusicFlowRepository"
-    const val SEEDS_PER_BATCH = 2
-    const val SEED_LIMIT = 6
-    const val LIKED_POOL = 40
+    const val SEEDS_PER_BATCH = 4
+    const val CONTINUATIONS_PER_BATCH = 2
+    const val SEED_LIMIT = 18
+    const val LIKED_POOL = 100
     const val RECENT_EXCLUSION_LIMIT = 30
   }
 }

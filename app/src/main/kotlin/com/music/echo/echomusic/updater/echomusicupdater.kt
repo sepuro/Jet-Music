@@ -295,8 +295,8 @@ fun UpdateScreen(navController: NavHostController) {
         scrollBehavior = scrollBehavior,
         colors =
           TopAppBarDefaults.largeTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background,
-            scrolledContainerColor = MaterialTheme.colorScheme.background,
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
             titleContentColor = MaterialTheme.colorScheme.onBackground
           )
       )

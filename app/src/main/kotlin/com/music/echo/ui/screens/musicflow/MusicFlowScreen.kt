@@ -172,6 +172,15 @@ fun MusicFlowScreen(
   val pageCount = items.size + if (hasTrailingPage) 1 else 0
   val pagerState = rememberPagerState(initialPage = state.selectedIndex) { pageCount }
 
+  LaunchedEffect(pagerState, items.size) {
+    snapshotFlow { pagerState.currentPage }
+      .distinctUntilChanged()
+      .collect { currentPage ->
+        if (items.isNotEmpty() && items.size - currentPage <= 4) {
+          viewModel.loadMoreVideos()
+        }
+      }
+  }
   LaunchedEffect(pagerState) {
     snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect(viewModel::onPageSettled)
   }
