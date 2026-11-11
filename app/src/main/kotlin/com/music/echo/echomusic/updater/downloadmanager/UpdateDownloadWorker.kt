@@ -44,96 +44,112 @@ class UpdateDownloadWorker(private val context: Context, workerParams: WorkerPar
       } catch (e: Exception) {}
 
       try {
-        val url = URL(apkUrl)
-        val connection = url.openConnection() as HttpURLConnection
-        connection.requestMethod = "GET"
-        connection.connectTimeout = 15000
-        connection.readTimeout = 15000
-        connection.connect()
+        val okHttpClient =
+          okhttp3.OkHttpClient.Builder()
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
 
-        if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-          DownloadNotificationManager.showDownloadFailed(
-            version,
-            context.getString(R.string.server_error, connection.responseCode)
-          )
-          if (connection.responseCode >= 500) {
-            return@withContext Result.retry()
-          }
-          return@withContext Result.failure()
-        }
+        val request =
+          okhttp3.Request.Builder()
+            .url(apkUrl)
+            .header("User-Agent", "Jet-Music-Updater")
+            .header("Accept", "application/octet-stream, application/vnd.android.package-archive, */*")
+            .get()
+            .build()
 
-        val fileLength = connection.contentLength
-        val inputStream = connection.inputStream
-
-        val downloadDir =
-          File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "echo_updates")
+        val downloadDir = File(context.cacheDir, "updates")
         if (!downloadDir.exists()) {
           downloadDir.mkdirs()
         }
 
         val isZip = apkUrl.contains("nightly.link") || apkUrl.endsWith(".zip")
         val downloadFile =
-          if (isZip) File(downloadDir, "echo_temp.zip") else File(downloadDir, "echomusic.apk")
-        val outputStream = FileOutputStream(downloadFile)
+          if (isZip) File(downloadDir, "echo_temp.zip")
+          else File(context.cacheDir, "updates/Jet-Music-update.apk")
+        if (downloadFile.exists()) {
+          downloadFile.delete()
+        }
 
-        val buffer = ByteArray(8192)
-        var bytesRead: Int
-        var totalBytesRead: Long = 0
-        var lastProgress = -1
-        var lastNotificationTime = 0L
-
-        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-          if (isStopped) {
-            outputStream.close()
-            inputStream.close()
-            connection.disconnect()
-            if (downloadFile.exists()) {
-              downloadFile.delete()
+        okHttpClient.newCall(request).execute().use { response ->
+          if (!response.isSuccessful) {
+            DownloadNotificationManager.showDownloadFailed(
+              version,
+              context.getString(R.string.server_error, response.code)
+            )
+            if (response.code >= 500) {
+              return@withContext Result.retry()
             }
-            return@withContext Result.retry()
+            return@withContext Result.failure()
           }
 
-          outputStream.write(buffer, 0, bytesRead)
-          totalBytesRead += bytesRead
+          val body = response.body ?: return@withContext Result.failure()
+          val fileLength = body.contentLength()
+          body.byteStream().use { inputStream ->
+            FileOutputStream(downloadFile).use { outputStream ->
+              val buffer = ByteArray(8192)
+              var bytesRead: Int
+              var totalBytesRead: Long = 0
+              var lastProgress = -1
+              var lastNotificationTime = 0L
 
-          if (fileLength > 0) {
-            val progress = (totalBytesRead.toFloat() / fileLength.toFloat() * 100).toInt()
-            val currentTime = System.currentTimeMillis()
+              while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                if (isStopped) {
+                  if (downloadFile.exists()) {
+                    downloadFile.delete()
+                  }
+                  return@withContext Result.retry()
+                }
 
-            if (progress > lastProgress && currentTime - lastNotificationTime >= 1000) {
-              lastProgress = progress
-              lastNotificationTime = currentTime
+                outputStream.write(buffer, 0, bytesRead)
+                totalBytesRead += bytesRead
 
-              val progressNotification =
-                DownloadNotificationManager.getDownloadProgressNotification(progress, version)
-              val notificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE)
-                  as android.app.NotificationManager
-              notificationManager.notify(
-                DownloadNotificationManager.NOTIFICATION_ID,
-                progressNotification
-              )
+                if (fileLength > 0) {
+                  val progress = (totalBytesRead.toFloat() / fileLength.toFloat() * 100).toInt()
+                  val currentTime = System.currentTimeMillis()
 
-              setProgress(workDataOf("progress" to progress.toFloat() / 100f))
+                  if (progress > lastProgress && currentTime - lastNotificationTime >= 1000) {
+                    lastProgress = progress
+                    lastNotificationTime = currentTime
+
+                    val progressNotification =
+                      DownloadNotificationManager.getDownloadProgressNotification(progress, version)
+                    val notificationManager =
+                      context.getSystemService(Context.NOTIFICATION_SERVICE)
+                        as android.app.NotificationManager
+                    notificationManager.notify(
+                      DownloadNotificationManager.NOTIFICATION_ID,
+                      progressNotification
+                    )
+
+                    setProgress(workDataOf("progress" to progress.toFloat() / 100f))
+                  }
+                }
+              }
+
+              outputStream.flush()
+              outputStream.fd.sync()
             }
           }
         }
 
-        outputStream.flush()
-        outputStream.close()
-        inputStream.close()
-        connection.disconnect()
-
         val finalFile =
           if (isZip) {
-            val targetApkFile = File(downloadDir, "echomusic.apk")
+            val targetApkFile = File(context.cacheDir, "updates/Jet-Music-update.apk")
+            if (targetApkFile.exists()) targetApkFile.delete()
             var extracted = false
             try {
               ZipInputStream(downloadFile.inputStream()).use { zis ->
                 var entry = zis.nextEntry
                 while (entry != null) {
                   if (!entry.isDirectory && entry.name.endsWith(".apk")) {
-                    FileOutputStream(targetApkFile).use { fos -> zis.copyTo(fos) }
+                    FileOutputStream(targetApkFile).use { fos ->
+                      zis.copyTo(fos)
+                      fos.flush()
+                      fos.fd.sync()
+                    }
                     extracted = true
                     break
                   }
@@ -160,6 +176,13 @@ class UpdateDownloadWorker(private val context: Context, workerParams: WorkerPar
           } else {
             downloadFile
           }
+
+        val archiveInfo = context.packageManager.getPackageArchiveInfo(finalFile.absolutePath, 0)
+        if (archiveInfo == null) {
+          finalFile.delete()
+          DownloadNotificationManager.showDownloadFailed(version, "Invalid APK package archive")
+          return@withContext Result.failure()
+        }
 
         if (version.startsWith("nightly-r")) {
           val runNumberString = version.removePrefix("nightly-r")

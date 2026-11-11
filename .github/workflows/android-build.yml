@@ -52,21 +52,19 @@ jobs:
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       run: |
-        if [ -n "$KEYSTORE_BASE64" ]; then
+        if [ -f "app/keystore.jks" ]; then
+          cp app/keystore.jks keystore.jks
+        elif [ -n "$KEYSTORE_BASE64" ]; then
           echo "$KEYSTORE_BASE64" | base64 -d > keystore.jks
+          cp keystore.jks app/keystore.jks
         elif [ -f "app/persistent-debug.keystore" ]; then
           cp app/persistent-debug.keystore keystore.jks
+          cp keystore.jks app/keystore.jks
         else
-          keytool -genkeypair \
-            -keystore keystore.jks \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -dname "CN=Jet Music Release,O=Jet Music,C=US" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000
+          echo "ERROR: Official keystore (app/keystore.jks) not found!"
+          exit 1
         fi
+        keytool -list -v -keystore app/keystore.jks -storepass android | grep -i "AC:B5:50:5E:B0:57:21:E4:E2:C8:42:B3:D3:DD:D0:40:DF:99:86:F9:9C:4E:A9:5A:16:D0:CC:C9:EC:A7:C7:AF"
 
     - name: Run Unit Tests
       run: |
@@ -75,17 +73,22 @@ jobs:
 
     - name: Build Signed Release APK (R8 Full Mode + Lint Vital)
       env:
-        KEYSTORE_FILE: keystore.jks
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD != '' && secrets.KEYSTORE_PASSWORD || (secrets.STORE_PASSWORD != '' && secrets.STORE_PASSWORD || 'android') }}
-        STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD != '' && secrets.KEYSTORE_PASSWORD || (secrets.STORE_PASSWORD != '' && secrets.STORE_PASSWORD || 'android') }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS != '' && secrets.KEY_ALIAS || 'androiddebugkey' }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD != '' && secrets.KEY_PASSWORD || 'android' }}
+        KEYSTORE_FILE: app/keystore.jks
+        KEYSTORE_PASSWORD: android
+        STORE_PASSWORD: android
+        KEY_ALIAS: androiddebugkey
+        KEY_PASSWORD: android
       run: |
         chmod +x gradlew
         VERSION=$(grep 'versionName =' app/build.gradle.kts | head -1 | cut -d'"' -f2)
         ./gradlew lintVitalUniversalFossRelease assembleUniversalFossRelease --stacktrace
         mkdir -p release-assets
-        cp app/build/outputs/apk/universalFoss/release/*.apk "release-assets/Jet-Music-v${VERSION}-release.apk"
+        SIGNED_APK=$(find app/build/outputs/apk/universalFoss/release -maxdepth 1 -name "*.apk" ! -name "*-unsigned.apk" | head -n 1)
+        if [ -z "$SIGNED_APK" ]; then
+          echo "ERROR: Signed release APK not found!"
+          exit 1
+        fi
+        cp "$SIGNED_APK" "release-assets/Jet-Music-v${VERSION}-release.apk"
 
     - name: Verify APK Signature (v2/v3) & Badging (apksigner & aapt2)
       run: |
@@ -95,10 +98,14 @@ jobs:
         BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
         echo "Using build-tools from: $BUILD_TOOLS_DIR"
         "$BUILD_TOOLS_DIR/apksigner" verify --verbose --print-certs "$APK_PATH" | tee apksigner_output.txt
+        grep -q "Verified using v1 scheme (JAR signing): true" apksigner_output.txt
         grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" apksigner_output.txt
         grep -q "Verified using v3 scheme (APK Signature Scheme v3): true" apksigner_output.txt
+        grep -qi "acb5505eb05721e4e2c842b3d3ddd040df9986f99c4ea95a16d0ccc9eca7c7af" apksigner_output.txt
         "$BUILD_TOOLS_DIR/aapt2" dump badging "$APK_PATH" | grep -E "package:|launchable-activity:" | tee badging_output.txt
         grep -q "name='app.jetmusic.android'" badging_output.txt
+        grep -q "versionCode='190'" badging_output.txt
+        grep -q "versionName='${VERSION}'" badging_output.txt
 
     - name: Upload Jet Music Release APK Artifact
       uses: actions/upload-artifact@v7
@@ -114,14 +121,14 @@ jobs:
       run: |
         VERSION=$(grep 'versionName =' app/build.gradle.kts | head -1 | cut -d'"' -f2)
         TAG="v${VERSION}"
-        TITLE="Jet Music v${VERSION} — Edge-to-Edge Transparent UI & Expanded Music Flow Video Feed"
+        TITLE="Jet Music v${VERSION} — Hardened OTA Updater, Unified Release Signing & FileProvider Installer"
         NOTES="## Jet Music v${VERSION}
 
-        ### Novedades de Interfaz (Edge-to-Edge) y Music Flow
-        - **Fondo Edge-to-Edge Real y Cabeceras Transparentes**: Eliminada cualquier barra negra superior en \`MainActivity\` y en todas las pantallas (\`TopAppBar\`, \`LargeTopAppBar\`, \`MediumTopAppBar\`) con \`enableEdgeToEdge()\` y \`Color.Transparent\` para que el fondo ambiental fluya desde \`top = 0.dp\`.
-        - **Inicio Minimalista**: Eliminada la fila de chips de estados de ánimo en \`HomeScreen\` y eliminado el halo rojo del icono de Configuración en la cabecera superior.
-        - **Music Flow de Alta Densidad con Video Real**: Ampliado el lote inicial (40+ pistas), paginación infinita automática (\`loadMoreVideos()\`) con pre-resolución de streams en segundo plano y fallback inteligente de pistas de audio (ATV) a videos musicales oficiales (OMV / Canvas) a pantalla completa.
-        - **Empaquetado y Firma v1/v2/v3**: Compilado con R8 Full Mode para \`app.jetmusic.android\` y verificado con \`apksigner\` y \`aapt2\`."
+        ### Seguridad de Paquetes y Motor de Actualización OTA Blindado
+        - **Firma Criptográfica Única e Inmutable (v1/v2/v3)**: Unificado el keystore oficial del proyecto (\`app/keystore.jks\`) entre compilaciones locales y GitHub Actions CI/CD, eliminando \`INSTALL_FAILED_UPDATE_INCOMPATIBLE\`.
+        - **Sincronización Monotónica de Versión**: Establecido \`versionCode = 190\` y \`versionName = \"1.9.0\"\` para garantizar actualizaciones limpias sin \`INSTALL_FAILED_VERSION_DOWNGRADE\`.
+        - **Descarga OTA con OkHttp y Validación de Archivo**: Descarga directa con \`OkHttpClient\` (\`followRedirects = true\`, \`followSslRedirects = true\`) hacia \`cacheDir/updates/Jet-Music-update.apk\`, sincronización a disco (\`flush()\` + \`fd.sync()\`) y validación previa mediante \`PackageManager.getPackageArchiveInfo\`.
+        - **Instalador con FileProvider y Reanudación Automática**: Verificación de \`canRequestPackageInstalls()\` con reanudación automática al volver de Ajustes y lanzamiento seguro con \`FileProvider\`."
 
         if gh release view "$TAG" >/dev/null 2>&1; then
           gh release upload "$TAG" "release-assets/Jet-Music-v${VERSION}-release.apk" --clobber

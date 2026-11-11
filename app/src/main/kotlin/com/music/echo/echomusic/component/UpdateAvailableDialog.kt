@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -14,6 +15,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +27,7 @@ import echo.music.iad1tya.echomusic.updater.ChangelogSection
 import echo.music.iad1tya.echomusic.updater.downloadApkWithProgress
 import echo.music.iad1tya.echomusic.updater.extractApkAssetFromRelease
 import echo.music.iad1tya.echomusic.updater.installApk
+import echo.music.iad1tya.echomusic.updater.pendingInstallApkFile
 import echo.music.iad1tya.ui.utils.parseMarkdownToSections
 import echo.music.iad1tya.ui.utils.parseSimpleMarkdown
 import java.io.File
@@ -44,11 +49,32 @@ fun UpdateAvailableDialog(
   onDismiss: () -> Unit
 ) {
   val context = LocalContext.current
+  val lifecycleOwner = LocalLifecycleOwner.current
   val coroutineScope = rememberCoroutineScope()
   var isDownloading by remember { mutableStateOf(false) }
   var downloadProgress by remember { mutableFloatStateOf(0f) }
   var downloadedFile by remember { mutableStateOf<File?>(null) }
   var errorText by remember { mutableStateOf<String?>(null) }
+
+  DisposableEffect(lifecycleOwner, downloadedFile) {
+    val observer = LifecycleEventObserver { _, event ->
+      if (event == Lifecycle.Event.ON_RESUME) {
+        val pending = pendingInstallApkFile ?: downloadedFile
+        if (
+          pending != null &&
+            pending.exists() &&
+            pendingInstallApkFile != null &&
+            (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O ||
+              context.packageManager.canRequestPackageInstalls())
+        ) {
+          pendingInstallApkFile = null
+          installApk(context, pending)
+        }
+      }
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+  }
 
   val cardShape =
     AbsoluteSmoothCornerShape(

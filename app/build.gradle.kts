@@ -33,8 +33,8 @@ android {
     applicationId = "app.jetmusic.android"
     minSdk = 26
     targetSdk = 36
-    versionCode = 171
-    versionName = "1.8.0"
+    versionCode = 190
+    versionName = "1.9.0"
 
     ndk {
       abiFilters += listOf("arm64-v8a", "armeabi-v7a")
@@ -131,55 +131,39 @@ android {
 
   signingConfigs {
     create("persistentDebug") {
-      storeFile = file("persistent-debug.keystore")
+      storeFile = file("keystore.jks")
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
+      enableV1Signing = true
+      enableV2Signing = true
+      enableV3Signing = true
     }
     create("release") {
-      val envKeystorePath =
-        project.findProperty("KEYSTORE_FILE")?.toString()
-          ?: localProperties.getProperty("KEYSTORE_FILE")
-          ?: System.getenv("KEYSTORE_FILE")
       val resolvedKeystore =
         when {
-          !envKeystorePath.isNullOrBlank() && rootProject.file(envKeystorePath).exists() ->
-            rootProject.file(envKeystorePath)
-          !envKeystorePath.isNullOrBlank() && file(envKeystorePath).exists() ->
-            file(envKeystorePath)
-          rootProject.file("keystore.jks").exists() -> rootProject.file("keystore.jks")
-          file("keystore/release.keystore").exists() -> file("keystore/release.keystore")
+          file("keystore.jks").exists() -> file("keystore.jks")
+          rootProject.file("keystore/release.jks").exists() -> rootProject.file("keystore/release.jks")
           file("persistent-debug.keystore").exists() -> file("persistent-debug.keystore")
-          else -> null
+          rootProject.file("keystore.jks").exists() -> rootProject.file("keystore.jks")
+          else -> file("keystore.jks")
         }
-      if (resolvedKeystore != null) {
-        storeFile = resolvedKeystore
-      }
-      storePassword =
-        project.findProperty("KEYSTORE_PASSWORD")?.toString()
-          ?: localProperties.getProperty("KEYSTORE_PASSWORD")
-          ?: System.getenv("KEYSTORE_PASSWORD")
-          ?: System.getenv("STORE_PASSWORD")
-          ?: "android"
-      keyAlias =
-        project.findProperty("KEY_ALIAS")?.toString()
-          ?: localProperties.getProperty("KEY_ALIAS")
-          ?: System.getenv("KEY_ALIAS")
-          ?: "androiddebugkey"
-      keyPassword =
-        project.findProperty("KEY_PASSWORD")?.toString()
-          ?: localProperties.getProperty("KEY_PASSWORD")
-          ?: System.getenv("KEY_PASSWORD")
-          ?: "android"
+      storeFile = resolvedKeystore
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
       enableV1Signing = true
       enableV2Signing = true
       enableV3Signing = true
     }
     getByName("debug") {
+      storeFile = file("keystore.jks")
+      storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
-      storePassword = "android"
-      storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+      enableV1Signing = true
+      enableV2Signing = true
+      enableV3Signing = true
     }
   }
 
@@ -193,9 +177,8 @@ android {
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
     debug {
-      applicationIdSuffix = ".debug"
       isDebuggable = true
-      signingConfig = signingConfigs.getByName("debug")
+      signingConfig = signingConfigs.getByName("release")
     }
   }
 

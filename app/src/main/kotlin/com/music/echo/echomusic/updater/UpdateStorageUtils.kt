@@ -1,11 +1,18 @@
 package echo.music.iad1tya.echomusic.updater
 
 import android.content.Context
-import android.os.Environment
 import java.io.File
 
 fun getDownloadedApksDir(context: Context): File {
-  return File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "echo_updates")
+  return File(context.cacheDir, "updates")
+}
+
+fun getTargetUpdateApkFile(context: Context): File {
+  val dir = getDownloadedApksDir(context)
+  if (!dir.exists()) {
+    dir.mkdirs()
+  }
+  return File(dir, "Jet-Music-update.apk")
 }
 
 fun getDownloadedApkCount(context: Context): Int {
