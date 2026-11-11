@@ -11,20 +11,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: "pages"
+  group: "pages-sync"
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Publish jetmusic.site to GitHub Pages
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    name: Verify & Publish jetmusic.site to gh-pages
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -39,14 +34,10 @@ jobs:
           test -f docs/apple-touch-icon.png
           test -f docs/og-image.png
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: "./docs"
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish docs/ to gh-pages branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          DOCS_TREE=$(git rev-parse HEAD:docs)
+          COMMIT_HASH=$(git commit-tree "$DOCS_TREE" -m "deploy(web): publish jetmusic.site from main (${GITHUB_SHA::7})")
+          git push origin "$COMMIT_HASH:refs/heads/gh-pages" --force

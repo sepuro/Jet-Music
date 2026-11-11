@@ -15,6 +15,8 @@ on:
       - "apple-touch-icon.png"
       - "og-image.png"
       - "site.webmanifest"
+      - "assets/**"
+      - ".github/workflows/pages.yml"
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
