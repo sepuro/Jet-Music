@@ -334,6 +334,16 @@ constructor(
       }
 
       val prefs = preferences.first()
+      if (prefs.autoplay && playerConnection.player.mediaItemCount > 0 && !playerConnection.player.isPlaying) {
+        if (
+          playerConnection.player.playbackState == Player.STATE_IDLE ||
+            playerConnection.player.playbackState == Player.STATE_ENDED
+        ) {
+          playerConnection.player.prepare()
+        }
+        playerConnection.player.playWhenReady = true
+        playerConnection.player.play()
+      }
       flowCoordinator.syncUpcomingQueueForCurrentTrack(prefs.autoNext)
       canRestore.value = flowCoordinator.canRestorePreviousQueue()
       refreshStatus(currentId, flowCoordinator)
@@ -369,9 +379,11 @@ constructor(
     val player = connection?.player
     val currentId = player?.currentMediaItem?.mediaId
     val liveIndex = player?.currentMediaItemIndex ?: -1
+    val shouldAutoPlay = preferences.value.autoplay
     if ((index == liveIndex || index == session.state.value.selectedIndex) && (currentId == null || item.songId == currentId)) {
       session.select(index)
       prefetchIfNeeded()
+      prefetchUpcomingLyrics(items, index + 1)
       prefetchUpcomingVideos(items, index)
       return
     }
@@ -382,11 +394,15 @@ constructor(
         if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
           player.prepare()
         }
-        if (preferences.value.autoplay && !player.playWhenReady) {
+        if (shouldAutoPlay) {
           player.playWhenReady = true
+          player.play()
+        } else {
+          player.playWhenReady = false
+          player.pause()
         }
       } else {
-        request(item.songId, playWhenReady = preferences.value.autoplay)
+        request(item.songId, playWhenReady = shouldAutoPlay)
       }
     }
     prefetchIfNeeded()
@@ -536,6 +552,7 @@ constructor(
 
   private fun prefetchUpcomingVideos(items: List<MusicFlowItem>, startIndex: Int) {
     val prefs = preferences.value
+    YouTubeVideoCanvasProvider.currentVideoQuality = prefs.videoQuality
     if (!prefs.animatedBackground || prefs.dataSaver) return
     val candidates = items.drop(startIndex.coerceAtLeast(0)).take(VIDEO_PREFETCH_COUNT)
     candidates.forEach { item ->
@@ -548,6 +565,7 @@ constructor(
               title = item.song.title,
               artist = item.song.artists.joinToString(", ") { it.name },
               durationSec = item.song.duration?.toLong(),
+              videoQuality = prefs.videoQuality,
             )
           if (artwork != null) {
             CanvasArtworkPlaybackCache.put(item.songId, artwork)

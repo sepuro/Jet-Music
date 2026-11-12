@@ -202,13 +202,16 @@ object NewPipeExtractor {
     }
   }
 
-  fun getVideoUrlAndDuration(videoId: String): Pair<String, Long>? {
+  fun getVideoUrlAndDuration(videoId: String, maxHeight: Int? = null): Pair<String, Long>? {
     init()
     return try {
       val streamInfo =
         StreamInfo.getInfo(NewPipe.getService(0), "https://www.youtube.com/watch?v=$videoId")
       val durationSec = streamInfo.duration
-      val videoStreams = (streamInfo.videoStreams + streamInfo.videoOnlyStreams).distinctBy { it.content }
+      val videoStreams =
+        (streamInfo.videoStreams + streamInfo.videoOnlyStreams)
+          .filter { !it.content.isNullOrBlank() }
+          .distinctBy { it.content }
 
       val isMp4 = { s: org.schabi.newpipe.extractor.stream.VideoStream ->
         val name = s.format?.name.orEmpty()
@@ -223,9 +226,15 @@ object NewPipeExtractor {
           content.contains(".mp4", ignoreCase = true)
       }
 
+      val heightFiltered =
+        if (maxHeight != null) {
+          videoStreams.filter { it.height in 1..maxHeight }.ifEmpty { videoStreams }
+        } else {
+          videoStreams
+        }
+
       val chosen =
-        videoStreams
-          .filter { !it.content.isNullOrBlank() }
+        heightFiltered
           .maxWithOrNull(
             compareBy<org.schabi.newpipe.extractor.stream.VideoStream>(
               { it.height },

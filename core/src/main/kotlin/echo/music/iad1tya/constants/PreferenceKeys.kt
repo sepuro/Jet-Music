@@ -341,7 +341,15 @@ val MusicFlowAnimatedBackgroundKey = booleanPreferencesKey("music_flow_animated_
 val MusicFlowLyricsKey = booleanPreferencesKey("music_flow_lyrics")
 val MusicFlowCellularPrefetchKey = booleanPreferencesKey("music_flow_cellular_prefetch")
 val MusicFlowHideRecentKey = booleanPreferencesKey("music_flow_hide_recent")
+val MusicFlowVideoQualityKey = stringPreferencesKey("music_flow_video_quality")
 val PreferExtensionAudioKey = booleanPreferencesKey("prefer_extension_audio")
+
+enum class MusicFlowVideoQuality {
+  AUTO,
+  HIGH_1080P,
+  MEDIUM_720P,
+  LOW_480P,
+}
 
 enum class LibraryViewType {
   LIST,

@@ -14,11 +14,14 @@ import echo.music.iad1tya.applecanvas.AppleMusicCanvasProvider
 import echo.music.iad1tya.canvas.CanvasArtwork
 import echo.music.iad1tya.canvas.TidalCanvasProvider
 import echo.music.iad1tya.canvas.YouTubeVideoCanvasProvider
+import echo.music.iad1tya.constants.MusicFlowVideoQuality
+import echo.music.iad1tya.constants.MusicFlowVideoQualityKey
 import echo.music.iad1tya.echomusiccanvas.echomusicCanvasProvider
 import echo.music.iad1tya.ui.player.CanvasArtworkPlaybackCache
 import echo.music.iad1tya.ui.player.CanvasArtworkPlayer
 import echo.music.iad1tya.ui.player.normalizeCanvasArtistName
 import echo.music.iad1tya.ui.player.normalizeCanvasSongTitle
+import echo.music.iad1tya.utils.rememberEnumPreference
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -44,15 +47,21 @@ fun AmbientCanvasBackground(
 
   val targetId = songId ?: mediaMetadata?.id ?: return
   val isPlaying = isPlayingOverride ?: isPlayingState
+  val (videoQuality) =
+    rememberEnumPreference(
+      key = MusicFlowVideoQualityKey,
+      defaultValue = MusicFlowVideoQuality.HIGH_1080P,
+    )
 
-  var canvasArtwork by remember(targetId) { mutableStateOf<CanvasArtwork?>(null) }
+  var canvasArtwork by remember(targetId, videoQuality) { mutableStateOf<CanvasArtwork?>(null) }
 
   val storefront = remember {
     val country = Locale.getDefault().country
     if (country.length == 2) country.lowercase(Locale.ROOT) else "us"
   }
 
-  LaunchedEffect(targetId, songTitle, artistName, albumTitle) {
+  LaunchedEffect(targetId, songTitle, artistName, albumTitle, videoQuality) {
+    YouTubeVideoCanvasProvider.currentVideoQuality = videoQuality
     CanvasArtworkPlaybackCache.get(targetId)?.let { cached ->
       canvasArtwork = cached
       return@LaunchedEffect

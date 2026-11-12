@@ -1196,6 +1196,16 @@ class MainActivity : ComponentActivity() {
                       )
                     },
                     actions = {
+                      if (musicFlowEnabled && currentRoute == Screens.Home.route) {
+                        IconButton(
+                          onClick = { navController.navigate("music_flow") { launchSingleTop = true } }
+                        ) {
+                          Icon(
+                            painter = painterResource(R.drawable.swipe_vertical),
+                            contentDescription = stringResource(R.string.music_flow)
+                          )
+                        }
+                      }
                       if (showHistoryButton) {
                         IconButton(onClick = { navController.navigate("history") }) {
                           Icon(

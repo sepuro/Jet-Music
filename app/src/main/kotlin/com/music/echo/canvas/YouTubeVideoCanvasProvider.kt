@@ -5,6 +5,7 @@ import com.music.innertube.YouTube
 import com.music.innertube.models.SongItem
 import com.music.innertube.models.YouTubeClient
 import com.music.innertube.models.response.PlayerResponse
+import echo.music.iad1tya.constants.MusicFlowVideoQuality
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,13 @@ import timber.log.Timber
 object YouTubeVideoCanvasProvider {
   private const val TAG = "YouTubeVideoCanvasProvider"
   private val cache = ConcurrentHashMap<String, CanvasArtwork>()
+
+  @Volatile
+  var currentVideoQuality: MusicFlowVideoQuality = MusicFlowVideoQuality.HIGH_1080P
+
+  fun clearCache() {
+    cache.clear()
+  }
 
   private suspend fun findOfficialVideoIds(title: String, artist: String): List<String> {
     val cleanTitle = title
@@ -165,9 +173,17 @@ object YouTubeVideoCanvasProvider {
 
   private suspend fun resolveVideoStreamForId(
     targetVideoId: String,
-    fallbackDurationSec: Long
+    fallbackDurationSec: Long,
+    videoQuality: MusicFlowVideoQuality = currentVideoQuality,
   ): Pair<String, Long>? {
     var totalDurationSec = fallbackDurationSec.coerceAtLeast(0L)
+    val maxHeight =
+      when (videoQuality) {
+        MusicFlowVideoQuality.MEDIUM_720P -> 720
+        MusicFlowVideoQuality.LOW_480P -> 480
+        MusicFlowVideoQuality.HIGH_1080P,
+        MusicFlowVideoQuality.AUTO -> null
+      }
 
     val clients = listOf(
       YouTubeClient.VISIONOS,
@@ -190,7 +206,7 @@ object YouTubeVideoCanvasProvider {
         }
 
         val adaptiveFormats = streamingData.adaptiveFormats + streamingData.formats.orEmpty()
-        val bestVideoFormat =
+        val resolvedFormats =
           adaptiveFormats
             .filter { it.mimeType.startsWith("video/") || it.height != null || it.width != null }
             .mapNotNull { format ->
@@ -200,23 +216,41 @@ object YouTubeVideoCanvasProvider {
                   ?: return@mapNotNull null
               format.copy(url = resolvedUrl)
             }
-            .maxWithOrNull(
-              compareBy<PlayerResponse.StreamingData.Format>(
-                { it.height ?: 0 },
-                { it.fps ?: 0 },
-                { codecPriority(it.mimeType) },
-                { it.bitrate },
-              )
+
+        val candidateFormats =
+          if (maxHeight != null) {
+            resolvedFormats.filter { (it.height ?: 0) in 1..maxHeight }.ifEmpty { resolvedFormats }
+          } else {
+            resolvedFormats
+          }
+
+        val bestVideoFormat =
+          candidateFormats.maxWithOrNull(
+            compareBy<PlayerResponse.StreamingData.Format>(
+              { it.height ?: 0 },
+              { it.fps ?: 0 },
+              { codecPriority(it.mimeType) },
+              { it.bitrate },
             )
+          )
 
         val url = bestVideoFormat?.url
         if (bestVideoFormat != null && !url.isNullOrBlank()) {
           val height = bestVideoFormat.height ?: 0
           Timber.tag(TAG).d(
-            "Found (${height}p @ ${bestVideoFormat.fps ?: 30}fps, ${bestVideoFormat.bitrate}bps) video stream via InnerTube (${client.clientName}) for $targetVideoId"
+            "Found (${height}p @ ${bestVideoFormat.fps ?: 30}fps, ${bestVideoFormat.bitrate}bps) video stream via InnerTube (${client.clientName}, quality=$videoQuality) for $targetVideoId"
           )
-          if (height >= 1080) {
-            return Pair(url, totalDurationSec)
+          when (videoQuality) {
+            MusicFlowVideoQuality.MEDIUM_720P -> {
+              if (height in 540..720) return Pair(url, totalDurationSec)
+            }
+            MusicFlowVideoQuality.LOW_480P -> {
+              if (height in 360..480) return Pair(url, totalDurationSec)
+            }
+            MusicFlowVideoQuality.HIGH_1080P,
+            MusicFlowVideoQuality.AUTO -> {
+              if (height >= 1080) return Pair(url, totalDurationSec)
+            }
           }
           val currentBestHeight = bestFallbackPair?.first?.height ?: 0
           val currentBestBitrate = bestFallbackPair?.first?.bitrate ?: 0
@@ -241,7 +275,7 @@ object YouTubeVideoCanvasProvider {
     }
 
     try {
-      val newPipeResult = NewPipeExtractor.getVideoUrlAndDuration(targetVideoId)
+      val newPipeResult = NewPipeExtractor.getVideoUrlAndDuration(targetVideoId, maxHeight)
       if (newPipeResult != null && newPipeResult.first.isNotBlank()) {
         val resolvedDur = if (totalDurationSec > 0L) totalDurationSec else newPipeResult.second
         Timber.tag(TAG).d("Found video stream via NewPipe for $targetVideoId")
@@ -258,10 +292,12 @@ object YouTubeVideoCanvasProvider {
     videoId: String,
     title: String? = null,
     artist: String? = null,
-    durationSec: Long? = null
+    durationSec: Long? = null,
+    videoQuality: MusicFlowVideoQuality = currentVideoQuality,
   ): CanvasArtwork? {
     if (videoId.isBlank() || videoId.length < 5) return null
-    cache[videoId]?.let { return it }
+    val cacheKey = "$videoId:${videoQuality.name}"
+    cache[cacheKey]?.let { return it }
 
     return withContext(Dispatchers.IO) {
       val officialVideoIds = if (!title.isNullOrBlank()) {
@@ -273,19 +309,20 @@ object YouTubeVideoCanvasProvider {
       // Try official music video candidates first (so ATV audio tracks get upgraded to OMV video),
       // then fall back to the original videoId if needed.
       val candidateIds = (officialVideoIds + listOf(videoId)).distinct()
-      Timber.tag(TAG).d("Resolving canvas stream across candidates=$candidateIds (original: $videoId)")
+      Timber.tag(TAG).d("Resolving canvas stream across candidates=$candidateIds (original: $videoId, quality=$videoQuality)")
 
       var resolvedVideoUrl: String? = null
       var resolvedTargetId: String = videoId
       var totalDurationSec: Long = durationSec?.takeIf { it > 0 } ?: 0L
 
       for (candidateId in candidateIds) {
-        cache[candidateId]?.let { cached ->
-          cache[videoId] = cached
+        val candidateCacheKey = "$candidateId:${videoQuality.name}"
+        cache[candidateCacheKey]?.let { cached ->
+          cache[cacheKey] = cached
           return@withContext cached
         }
         val initialDuration = if (candidateId == videoId) totalDurationSec else 0L
-        val streamResult = resolveVideoStreamForId(candidateId, initialDuration)
+        val streamResult = resolveVideoStreamForId(candidateId, initialDuration, videoQuality)
         if (streamResult != null) {
           resolvedVideoUrl = streamResult.first
           totalDurationSec = streamResult.second
@@ -308,9 +345,9 @@ object YouTubeVideoCanvasProvider {
         clipEndMs = null
       )
 
-      cache[videoId] = artwork
+      cache[cacheKey] = artwork
       if (resolvedTargetId != videoId) {
-        cache[resolvedTargetId] = artwork
+        cache["$resolvedTargetId:${videoQuality.name}"] = artwork
       }
       artwork
     }

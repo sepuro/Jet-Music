@@ -29,10 +29,15 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.music.innertube.YouTube
 import echo.music.iad1tya.LocalPlayerConnection
+import echo.music.iad1tya.canvas.YouTubeVideoCanvasProvider
+import echo.music.iad1tya.constants.MusicFlowVideoQuality
+import echo.music.iad1tya.constants.MusicFlowVideoQualityKey
+import echo.music.iad1tya.utils.rememberEnumPreference
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -141,14 +146,24 @@ fun CanvasArtworkPlayer(
       DefaultMediaSourceFactory(dataSourceFactory)
     }
 
+  val (videoQuality) =
+    rememberEnumPreference(
+      key = MusicFlowVideoQualityKey,
+      defaultValue = MusicFlowVideoQuality.HIGH_1080P,
+    )
+
+  LaunchedEffect(videoQuality) {
+    YouTubeVideoCanvasProvider.currentVideoQuality = videoQuality
+  }
+
   val trackSelector = remember {
-    DefaultTrackSelector(context).apply {
+    DefaultTrackSelector(context, AdaptiveTrackSelection.Factory()).apply {
       parameters =
         buildUponParameters()
+          .clearVideoSizeConstraints()
           .setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
           .setMaxVideoBitrate(Int.MAX_VALUE)
           .setForceHighestSupportedBitrate(true)
-          .clearVideoSizeConstraints()
           .build()
     }
   }
@@ -160,14 +175,6 @@ fun CanvasArtworkPlayer(
       .setLoadControl(DefaultLoadControl.Builder().setTargetBufferBytes(32 * 1024 * 1024).build())
       .build()
       .apply {
-        trackSelectionParameters =
-          trackSelectionParameters
-            .buildUpon()
-            .setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
-            .setMaxVideoBitrate(Int.MAX_VALUE)
-            .setForceHighestSupportedBitrate(true)
-            .clearVideoSizeConstraints()
-            .build()
         setAudioAttributes(
           AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
@@ -180,6 +187,32 @@ fun CanvasArtworkPlayer(
         repeatMode = Player.REPEAT_MODE_ONE
         playWhenReady = isPlaying
       }
+  }
+
+  LaunchedEffect(videoQuality, trackSelector, exoPlayer) {
+    val updatedParams =
+      trackSelector.buildUponParameters().clearVideoSizeConstraints().apply {
+        when (videoQuality) {
+          MusicFlowVideoQuality.HIGH_1080P -> {
+            setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+            setMaxVideoBitrate(Int.MAX_VALUE)
+            setForceHighestSupportedBitrate(true)
+          }
+          MusicFlowVideoQuality.MEDIUM_720P -> {
+            setMaxVideoSize(1280, 720)
+            setForceHighestSupportedBitrate(false)
+          }
+          MusicFlowVideoQuality.LOW_480P -> {
+            setMaxVideoSize(854, 480)
+            setForceHighestSupportedBitrate(false)
+          }
+          MusicFlowVideoQuality.AUTO -> {
+            setForceHighestSupportedBitrate(false)
+          }
+        }
+      }.build()
+    trackSelector.parameters = updatedParams
+    exoPlayer.trackSelectionParameters = updatedParams
   }
 
   val aspectRatioFrameLayout = remember {

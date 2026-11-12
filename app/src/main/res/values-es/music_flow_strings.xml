@@ -43,4 +43,9 @@
     <string name="music_flow_cellular_prefetch_description">Solo se precargan las portadas y los datos de la canción, nunca el audio</string>
     <string name="music_flow_hide_recent">Ocultar reproducidas recientemente</string>
     <string name="music_flow_hide_recent_description">Omite las canciones que has escuchado hace poco</string>
+    <string name="music_flow_video_quality">Calidad de video</string>
+    <string name="music_flow_video_quality_auto">Automática (Adaptativa)</string>
+    <string name="music_flow_video_quality_1080p">1080p Full HD (Máxima calidad)</string>
+    <string name="music_flow_video_quality_720p">720p HD (Equilibrado)</string>
+    <string name="music_flow_video_quality_480p">480p SD (Ahorro de datos)</string>
 </resources>

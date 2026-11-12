@@ -117,6 +117,7 @@ import echo.music.iad1tya.constants.GridThumbnailHeight
 import echo.music.iad1tya.constants.InnerTubeCookieKey
 import echo.music.iad1tya.constants.ListItemHeight
 import echo.music.iad1tya.constants.ListThumbnailSize
+import echo.music.iad1tya.constants.MusicFlowEnabledKey
 import echo.music.iad1tya.constants.RandomizeHomeOrderKey
 import echo.music.iad1tya.constants.ShowSpeedDialKey
 import echo.music.iad1tya.constants.SmallGridThumbnailHeight
@@ -138,6 +139,7 @@ import echo.music.iad1tya.ui.component.ChipsRow
 import echo.music.iad1tya.ui.component.LocalBottomSheetPageState
 import echo.music.iad1tya.ui.component.LocalMenuState
 import echo.music.iad1tya.ui.component.NavigationTitle
+import echo.music.iad1tya.ui.component.musicflow.MusicFlowEntryCard
 import echo.music.iad1tya.ui.component.podcastHome
 import echo.music.iad1tya.ui.component.rememberEpisodesInProgress
 import echo.music.iad1tya.ui.component.RandomizeGridItem
@@ -158,6 +160,8 @@ import echo.music.iad1tya.ui.menu.YouTubePlaylistMenu
 import echo.music.iad1tya.ui.menu.YouTubeSongMenu
 import echo.music.iad1tya.ui.utils.SnapLayoutInfoProvider
 import echo.music.iad1tya.ui.utils.resize
+import echo.music.iad1tya.utils.dataStore
+import echo.music.iad1tya.utils.get
 import echo.music.iad1tya.utils.listItemShape
 import echo.music.iad1tya.utils.rememberEnumPreference
 import echo.music.iad1tya.utils.rememberPreference
@@ -169,6 +173,7 @@ import kotlin.math.min
 import kotlin.random.Random
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 private fun NavController.navigateToPlaylistItem(playlist: PlaylistItem) {
@@ -654,6 +659,11 @@ fun HomeScreen(
   val (randomizeHomeOrder) = rememberPreference(RandomizeHomeOrderKey, true)
   val (showSpeedDial) = rememberPreference(ShowSpeedDialKey, true)
   val (isWrappedDismissed, onDismissWrapped) = rememberPreference(EchoWrappedBannerDismissedKey, defaultValue = false)
+  val context = LocalContext.current
+  val showMusicFlowInHome by
+    remember(context) {
+      context.dataStore.data.map { it[MusicFlowEnabledKey] ?: true }
+    }.collectAsState(initial = context.dataStore[MusicFlowEnabledKey] ?: true)
 
   val isLoggedIn = remember(innerTubeCookie) { "SAPISID" in parseCookieString(innerTubeCookie) }
   val url = if (isLoggedIn) accountImageUrl else null
@@ -1028,6 +1038,14 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize().hapticScrollEdge(lazylistState),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
       ) {
+        if (selectedChip == null && showMusicFlowInHome) {
+          item(key = "music_flow_entry_card", contentType = "music_flow_shortcut") {
+            MusicFlowEntryCard(
+              onClick = { navController.navigate("music_flow") { launchSingleTop = true } }
+            )
+          }
+        }
+
         if (selectedChip == null && !isWrappedDismissed) {
           item(key = "echo_wrapped_banner", contentType = "banner") {
             com.music.echo.ui.screens.wrapped.WrappedBannerCard(

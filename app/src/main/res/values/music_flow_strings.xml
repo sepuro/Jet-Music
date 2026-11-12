@@ -43,4 +43,9 @@
     <string name="music_flow_cellular_prefetch_description">Only artwork and song details are preloaded, never audio</string>
     <string name="music_flow_hide_recent">Hide recently played</string>
     <string name="music_flow_hide_recent_description">Skip songs you played recently</string>
+    <string name="music_flow_video_quality">Video quality</string>
+    <string name="music_flow_video_quality_auto">Auto (Adaptive)</string>
+    <string name="music_flow_video_quality_1080p">1080p Full HD (Maximum quality)</string>
+    <string name="music_flow_video_quality_720p">720p HD (Balanced)</string>
+    <string name="music_flow_video_quality_480p">480p SD (Data saver)</string>
 </resources>

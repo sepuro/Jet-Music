@@ -144,12 +144,27 @@ fun MusicFlowScreen(
 
   val state by viewModel.uiState.collectAsState()
   val preferences by viewModel.preferences.collectAsState()
+  val autoPlay = preferences.autoplay
   val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
   val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
   val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
   val currentIndex by playerConnection.currentMediaItemIndex.collectAsState()
   val queueWindows by playerConnection.queueWindows.collectAsState()
   val currentMediaId = playerConnection.player.currentMediaItem?.mediaId ?: mediaMetadata?.id
+
+  LaunchedEffect(playerConnection) {
+    val player = playerConnection.player
+    if (viewModel.preferences.value.autoplay && player.mediaItemCount > 0 && !player.isPlaying) {
+      if (
+        player.playbackState == androidx.media3.common.Player.STATE_IDLE ||
+          player.playbackState == androidx.media3.common.Player.STATE_ENDED
+      ) {
+        player.prepare()
+      }
+      player.playWhenReady = true
+      player.play()
+    }
+  }
 
   val reduceMotion = remember { context.isReducedMotion() }
   val showCanvas = preferences.animatedBackground && !preferences.dataSaver
@@ -258,7 +273,22 @@ fun MusicFlowScreen(
         val livePlayerIndex = playerConnection.player.currentMediaItemIndex
         if (userHasScrolled && settledPage in items.indices && settledPage != livePlayerIndex) {
           userHasScrolled = false
-          playerConnection.player.seekToDefaultPosition(settledPage)
+          val player = playerConnection.player
+          val shouldAutoPlay = viewModel.preferences.value.autoplay
+          player.seekToDefaultPosition(settledPage)
+          if (
+            player.playbackState == androidx.media3.common.Player.STATE_IDLE ||
+              player.playbackState == androidx.media3.common.Player.STATE_ENDED
+          ) {
+            player.prepare()
+          }
+          if (shouldAutoPlay) {
+            player.playWhenReady = true
+            player.play()
+          } else {
+            player.playWhenReady = false
+            player.pause()
+          }
           viewModel.onPageSettled(settledPage)
         }
       }

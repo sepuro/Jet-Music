@@ -10,6 +10,9 @@ import echo.music.iad1tya.constants.MusicFlowCellularPrefetchKey
 import echo.music.iad1tya.constants.MusicFlowEnabledKey
 import echo.music.iad1tya.constants.MusicFlowHideRecentKey
 import echo.music.iad1tya.constants.MusicFlowLyricsKey
+import echo.music.iad1tya.constants.MusicFlowVideoQuality
+import echo.music.iad1tya.constants.MusicFlowVideoQualityKey
+import echo.music.iad1tya.extensions.toEnum
 
 data class MusicFlowPreferences(
   val enabled: Boolean = true,
@@ -20,6 +23,7 @@ data class MusicFlowPreferences(
   val cellularPrefetch: Boolean = true,
   val hideRecent: Boolean = true,
   val dataSaver: Boolean = false,
+  val videoQuality: MusicFlowVideoQuality = MusicFlowVideoQuality.HIGH_1080P,
 ) {
   companion object {
     fun from(preferences: Preferences) =
@@ -35,6 +39,10 @@ data class MusicFlowPreferences(
         cellularPrefetch = preferences[MusicFlowCellularPrefetchKey] ?: true,
         hideRecent = preferences[MusicFlowHideRecentKey] ?: true,
         dataSaver = preferences[DataSaverEnabledKey] ?: false,
+        videoQuality =
+          preferences[MusicFlowVideoQualityKey].toEnum(
+            defaultValue = MusicFlowVideoQuality.HIGH_1080P
+          ),
       )
   }
 }

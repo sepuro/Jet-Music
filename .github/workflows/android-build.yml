@@ -131,14 +131,14 @@ jobs:
         VERSION=$(grep 'versionName =' app/build.gradle.kts | head -1 | cut -d'"' -f2)
         VERSION_CODE=$(grep 'versionCode =' app/build.gradle.kts | head -1 | awk '{print $3}')
         TAG="v${VERSION}"
-        TITLE="Jet Music v${VERSION} — Seamless TextureView + BlendMode.DstIn Alpha Fade on Player Video & Canvas"
+        TITLE="Jet Music v${VERSION} — Music Flow Home Shortcut, Auto-Play Sync, Selectable Video Quality & Seamless TextureView Fade"
         NOTES="## Jet Music v${VERSION}
 
         ### Novedades de esta versión
-        - **Difuminado Alfa Real sin Costuras en Video del Reproductor (\`TextureView\` + \`BlendMode.DstIn\`)**: Migración del renderizador de video/canvas del reproductor (\`CanvasArtworkPlayer\` y \`BackgroundVideoView\`) de \`SurfaceView\` a \`TextureView\` integrado en el pipeline \`RenderNode\` de Jetpack Compose (\`CompositingStrategy.Offscreen\` + \`BlendMode.DstIn\` multi-parada y \`isVerticalFadingEdgeEnabled = true\`), eliminando el corte horizontal recto encima del \`Slider\` y manteniendo 1080p+ de alto bitrate (\`RESIZE_MODE_ZOOM\`).
-        - **Sincronización Absoluta de Music Flow (\`Single Source of Truth\`)**: \`VerticalPager\` conectado directamente a la cola activa real de \`ExoPlayer\` (\`queueWindows\` / \`currentMediaItemIndex\`). Cero reinicio o cambio de pista al entrar; las recomendaciones adicionales se añaden exclusivamente al final de la cola con \`player.addMediaItems(...)\`.
-        - **Máxima Calidad de Video (1080p+ / Full HD / Alto Bitrate)**: Selección prioritaria de streams adaptativos \`height >= 1080\`, 60fps y códecs modernos (\`av01\` / \`vp9\` / \`avc1\`) en InnerTube y NewPipe, \`DefaultTrackSelector\` forzado al máximo bitrate sincronizado con \`mainPlayer\`.
-        - **Tarjeta de Instagram en Sobre (\`AboutScreen\`)**: Tarjeta integrada de Instagram (\`instagram.com/amalejandroo\`) junto a GitHub y Website en el bloque de **Jet Music**.
+        - **Mostrar Music Flow en Inicio (\`MusicFlowEnabledKey\`)**: El interruptor *\"Mostrar Music Flow\"* ahora muestra u oculta en tiempo real tanto el botón de acceso rápido en la barra superior de \`HomeScreen\` como la tarjeta de entrada \`MusicFlowEntryCard\` sin necesidad de reiniciar la aplicación.
+        - **Reproducción Automática Real en Music Flow (\`MusicFlowAutoplayKey\`)**: Al deslizar a otra canción en \`MusicFlowScreen\` (o al abrir la pantalla en pausa), respeta en tiempo real el ajuste de reproducción automática (\`playWhenReady = true\` / \`play()\` cuando está activado, o \`playWhenReady = false\` / \`pause()\` mostrando portada e icono de Play cuando está desactivado).
+        - **Selector de Calidad de Video en Music Flow (\`MusicFlowVideoQualityKey\`)**: Nueva tarjeta interactiva *\"Calidad de video\"* en Ajustes de Music Flow con 4 niveles (\`Automática (Adaptativa)\`, \`1080p Full HD (Máxima calidad)\`, \`720p HD (Equilibrado)\`, \`480p SD (Ahorro de datos)\`) conectada en tiempo real al extractor de streams y al \`DefaultTrackSelector\` de Media3.
+        - **Difuminado Alfa Real sin Costuras en Video del Reproductor (\`TextureView\` + \`BlendMode.DstIn\`)**: Renderizado de video/canvas en \`TextureView\` integrado en el pipeline \`RenderNode\` de Jetpack Compose (\`CompositingStrategy.Offscreen\` + \`BlendMode.DstIn\` multi-parada y \`isVerticalFadingEdgeEnabled = true\`).
         - **Actualización OTA In-Place (\`versionCode = ${VERSION_CODE}\`)**: Firmado con el certificado oficial único (\`v1\`/\`v2\`/\`v3\`) para actualización directa vía OTA."
 
         if gh release view "$TAG" >/dev/null 2>&1; then
