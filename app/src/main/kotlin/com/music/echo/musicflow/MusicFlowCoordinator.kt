@@ -45,14 +45,13 @@ class MusicFlowCoordinator(
   fun ownsPlayback(): Boolean = session.queueHandle?.let(player::ownsQueue) == true
 
   /**
-   * Attaches the Music Flow feed items (`page >= 1`) after the currently playing track in ExoPlayer
-   * without calling `setMediaItems` or interrupting the active track's playback position.
+   * Appends any upcoming Music Flow feed items to the end of the active ExoPlayer queue
+   * without calling `setMediaItems`, removing existing items, or interrupting the active track.
    */
   fun syncUpcomingQueueForCurrentTrack(autoNext: Boolean) {
     if (player.takeoverBlock() != null) return
     val items = session.state.value.items
-    val currentId = player.currentMediaId() ?: return
-    if (items.firstOrNull()?.songId != currentId) return
+    if (items.isEmpty() || player.currentMediaId() == null) return
 
     if (!player.isAnyFlowQueueActive() && session.queueSnapshot == null) {
       session.queueSnapshot = player.snapshot()
@@ -71,22 +70,19 @@ class MusicFlowCoordinator(
     if (requestId < latestRequestId) return MusicFlowPlaybackStatus.Switching
     if (player.currentMediaId() == songId) return MusicFlowPlaybackStatus.Synced
 
-    val handle = session.queueHandle
-    if (handle != null && player.ownsQueue(handle)) {
-      val queueIndex = player.queueMediaIds().indexOf(songId)
-      if (queueIndex >= 0) {
-        player.seekTo(queueIndex, playWhenReady)
-        return MusicFlowPlaybackStatus.Switching
-      }
-    }
-
     player.takeoverBlock()?.let { return MusicFlowPlaybackStatus.Blocked(it) }
+
+    val existingQueueIndex = player.queueMediaIds().indexOf(songId)
+    if (existingQueueIndex >= 0) {
+      player.seekTo(existingQueueIndex, playWhenReady)
+      return MusicFlowPlaybackStatus.Switching
+    }
 
     val items = session.state.value.items
     val startIndex = items.indexOfFirst { it.songId == songId }
     if (startIndex < 0) return MusicFlowPlaybackStatus.Idle
 
-    if (!player.isAnyFlowQueueActive()) {
+    if (!player.isAnyFlowQueueActive() && session.queueSnapshot == null) {
       session.queueSnapshot = player.snapshot()
     }
     val newHandle = player.startQueue(items, startIndex, playWhenReady)

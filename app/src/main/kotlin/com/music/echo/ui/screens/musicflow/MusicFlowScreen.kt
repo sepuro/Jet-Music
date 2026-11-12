@@ -89,8 +89,11 @@ import echo.music.iad1tya.db.MusicDatabase
 import echo.music.iad1tya.db.entities.LyricsEntity
 import echo.music.iad1tya.db.entities.Song
 import echo.music.iad1tya.db.entities.SongEntity
+import echo.music.iad1tya.extensions.metadata
 import echo.music.iad1tya.models.toMediaMetadata
 import echo.music.iad1tya.models.toSongEntity
+import echo.music.iad1tya.musicflow.MusicFlowSource
+import echo.music.iad1tya.musicflow.toMusicFlowSongItem
 import echo.music.iad1tya.playback.ExoDownloadService
 import echo.music.iad1tya.playback.PlayerConnection
 import echo.music.iad1tya.musicflow.MusicFlowFeedError
@@ -144,6 +147,8 @@ fun MusicFlowScreen(
   val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
   val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
   val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
+  val currentIndex by playerConnection.currentMediaItemIndex.collectAsState()
+  val queueWindows by playerConnection.queueWindows.collectAsState()
   val currentMediaId = playerConnection.player.currentMediaItem?.mediaId ?: mediaMetadata?.id
 
   val reduceMotion = remember { context.isReducedMotion() }
@@ -176,10 +181,65 @@ fun MusicFlowScreen(
   var playlistTarget by remember { mutableStateOf<SongItem?>(null) }
   BackHandler(enabled = lyricsExpanded) { lyricsExpanded = false }
 
-  val items = state.items
+  val queueItems =
+    remember(queueWindows, state.items, mediaMetadata, currentIndex) {
+      val feedById = state.items.associateBy { it.songId }
+      val fromWindows =
+        queueWindows.mapIndexedNotNull { index, window ->
+          val mediaItem = window.mediaItem
+          val mediaId = mediaItem.mediaId.takeIf { it.isNotBlank() } ?: return@mapIndexedNotNull null
+          val meta =
+            mediaItem.metadata
+              ?: mediaMetadata?.takeIf { it.id == mediaId }
+          when {
+            meta != null ->
+              MusicFlowItem(
+                song = meta.toMusicFlowSongItem(),
+                source = if (index == currentIndex) MusicFlowSource.NOW_PLAYING else MusicFlowSource.CATALOG,
+              )
+            feedById[mediaId] != null -> feedById.getValue(mediaId)
+            else -> {
+              val itemMeta = mediaItem.mediaMetadata
+              MusicFlowItem(
+                song =
+                  SongItem(
+                    id = mediaId,
+                    title = itemMeta.title?.toString().orEmpty(),
+                    artists =
+                      listOfNotNull(
+                        itemMeta.artist?.toString()?.takeIf { it.isNotBlank() }?.let {
+                          com.music.innertube.models.Artist(name = it, id = null)
+                        }
+                      ),
+                    album = null,
+                    duration = null,
+                    thumbnail = itemMeta.artworkUri?.toString().orEmpty(),
+                    explicit = false,
+                  ),
+                source = if (index == currentIndex) MusicFlowSource.NOW_PLAYING else MusicFlowSource.CATALOG,
+              )
+            }
+          }
+        }
+      if (fromWindows.isNotEmpty()) fromWindows else state.items
+    }
+
+  val items = queueItems
   val hasTrailingPage = items.isNotEmpty() && (state.isLoadingMore || !state.hasMore || state.error != null)
   val pageCount = items.size + if (hasTrailingPage) 1 else 0
-  val pagerState = rememberPagerState(initialPage = state.selectedIndex) { pageCount }
+  val pagerState =
+    rememberPagerState(
+      initialPage = currentIndex.coerceAtLeast(0),
+      pageCount = { pageCount },
+    )
+
+  var userHasScrolled by remember { mutableStateOf(false) }
+  LaunchedEffect(pagerState) {
+    snapshotFlow { pagerState.isScrollInProgress }
+      .collect { scrolling ->
+        if (scrolling) userHasScrolled = true
+      }
+  }
 
   LaunchedEffect(pagerState, items.size) {
     snapshotFlow { pagerState.currentPage }
@@ -190,26 +250,30 @@ fun MusicFlowScreen(
         }
       }
   }
+
   LaunchedEffect(pagerState) {
-    snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect(viewModel::onPageSettled)
+    snapshotFlow { pagerState.settledPage }
+      .distinctUntilChanged()
+      .collect { settledPage ->
+        val livePlayerIndex = playerConnection.player.currentMediaItemIndex
+        if (userHasScrolled && settledPage in items.indices && settledPage != livePlayerIndex) {
+          userHasScrolled = false
+          playerConnection.player.seekToDefaultPosition(settledPage)
+          viewModel.onPageSettled(settledPage)
+        }
+      }
   }
-  var shownItemCount by remember { mutableIntStateOf(items.size) }
-  LaunchedEffect(state.selectedIndex, items.size) {
-    val settled = pagerState.settledPage
-    val wasOnTrailingPage = shownItemCount > 0 && settled >= shownItemCount
-    shownItemCount = items.size
-    if (pagerState.isScrollInProgress || items.isEmpty()) return@LaunchedEffect
-    if (wasOnTrailingPage && settled in items.indices) {
-      viewModel.onPageSettled(settled)
-      return@LaunchedEffect
-    }
-    val target = state.selectedIndex
-    if (target < pageCount && settled != target) {
-      if (reduceMotion) pagerState.scrollToPage(target) else pagerState.animateScrollToPage(target)
+
+  LaunchedEffect(currentIndex, items.size) {
+    if (currentIndex in items.indices && !pagerState.isScrollInProgress && pagerState.settledPage != currentIndex) {
+      userHasScrolled = false
+      if (reduceMotion) pagerState.scrollToPage(currentIndex)
+      else pagerState.animateScrollToPage(currentIndex)
     }
   }
 
-  val selectedItem = items.getOrNull(state.selectedIndex)
+  val activePageIndex = if (currentIndex in items.indices) currentIndex else state.selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+  val selectedItem = items.getOrNull(activePageIndex)
   val previousLabel = stringResource(R.string.music_flow_previous)
   val nextLabel = stringResource(R.string.music_flow_next)
 
@@ -242,7 +306,7 @@ fun MusicFlowScreen(
             item != null -> {
               val librarySong by database.song(item.songId).collectAsState(initial = null)
               val download by downloadUtil.getDownload(item.songId).collectAsState(initial = null)
-              val isCurrent = item.songId == currentMediaId
+              val isCurrent = page == activePageIndex || item.songId == currentMediaId
               val currentLyricsText = if (isCurrent) currentLyrics?.lyrics else null
               val songDuration = remember(item.song.duration) { (item.song.duration ?: 0) * 1000L }
 
@@ -252,7 +316,7 @@ fun MusicFlowScreen(
                 isPlaying = isPlaying,
                 isLiked = librarySong?.song?.liked == true,
                 downloadState = download?.state,
-                showCanvas = showCanvas && page == state.selectedIndex,
+                showCanvas = showCanvas && (page == pagerState.settledPage || page == activePageIndex),
                 lyricsAvailable = isCurrent && lyricsReady,
                 showLyrics = isCurrent && preferences.lyrics,
                 lyricsText = currentLyricsText,

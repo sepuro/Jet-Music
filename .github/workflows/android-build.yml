@@ -110,9 +110,10 @@ jobs:
         grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" apksigner_output.txt
         grep -q "Verified using v3 scheme (APK Signature Scheme v3): true" apksigner_output.txt
         grep -qi "acb5505eb05721e4e2c842b3d3ddd040df9986f99c4ea95a16d0ccc9eca7c7af" apksigner_output.txt
+        VERSION_CODE=$(grep 'versionCode =' app/build.gradle.kts | head -1 | awk '{print $3}')
         "$BUILD_TOOLS_DIR/aapt2" dump badging "$APK_PATH" | grep -E "package:|launchable-activity:" | tee badging_output.txt
         grep -q "name='app.jetmusic.android'" badging_output.txt
-        grep -q "versionCode='191'" badging_output.txt
+        grep -q "versionCode='${VERSION_CODE}'" badging_output.txt
         grep -q "versionName='${VERSION}'" badging_output.txt
 
     - name: Upload Jet Music Release APK Artifact
@@ -128,14 +129,16 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: |
         VERSION=$(grep 'versionName =' app/build.gradle.kts | head -1 | cut -d'"' -f2)
+        VERSION_CODE=$(grep 'versionCode =' app/build.gradle.kts | head -1 | awk '{print $3}')
         TAG="v${VERSION}"
-        TITLE="Jet Music v${VERSION} — Instagram Card in About & Seamless Music Flow Active Track Continuity"
+        TITLE="Jet Music v${VERSION} — True Queue Sync in Music Flow, 1080p+ Max Bitrate Video & Instagram in About"
         NOTES="## Jet Music v${VERSION}
 
         ### Novedades de esta versión
-        - **Tarjeta de Instagram en Sobre (\`AboutScreen\`)**: Añadida la tarjeta de Instagram (\`instagram.com/amalejandroo\`) debajo de Website en el grupo de enlaces de **Jet Music**, manteniendo el diseño agrupado Material3 Expressive.
-        - **Continuidad Perfecta al Abrir Music Flow**: Al pulsar el chip **Music Flow** desde el reproductor, la canción activa permanece siempre en la página inicial (\`page = 0\`) continuando exactamente en el segundo actual (\`player.currentPosition\`) sin cambiar ni reiniciar el audio; las pistas recomendadas se encolan a partir del índice siguiente (\`page >= 1\`).
-        - **Actualización OTA In-Place (\`versionCode = 191\`)**: Firmado con el certificado oficial único (\`v1\`/\`v2\`/\`v3\`) para actualización directa vía OTA desde \`v1.9.0\`."
+        - **Sincronización Absoluta de Music Flow (\`Single Source of Truth\`)**: \`VerticalPager\` conectado directamente a la cola activa real de \`ExoPlayer\` (\`queueWindows\` / \`currentMediaItemIndex\`). Cero reinicio o cambio de pista al entrar; las recomendaciones adicionales se añaden exclusivamente al final de la cola con \`player.addMediaItems(...)\`.
+        - **Máxima Calidad de Video (1080p+ / Full HD / Alto Bitrate)**: Selección prioritaria de streams adaptativos \`height >= 1080\`, 60fps y códecs modernos (\`av01\` / \`vp9\` / \`avc1\`) en InnerTube y NewPipe, \`DefaultTrackSelector\` forzado al máximo bitrate y renderizado nativo por hardware en \`SurfaceView\` (\`RESIZE_MODE_ZOOM\`) sincronizado con \`mainPlayer\`.
+        - **Tarjeta de Instagram en Sobre (\`AboutScreen\`)**: Tarjeta integrada de Instagram (\`instagram.com/amalejandroo\`) junto a GitHub y Website en el bloque de **Jet Music**.
+        - **Actualización OTA In-Place (\`versionCode = ${VERSION_CODE}\`)**: Firmado con el certificado oficial único (\`v1\`/\`v2\`/\`v3\`) para actualización directa vía OTA."
 
         if gh release view "$TAG" >/dev/null 2>&1; then
           gh release upload "$TAG" "release-assets/Jet-Music-v${VERSION}-release.apk" --clobber

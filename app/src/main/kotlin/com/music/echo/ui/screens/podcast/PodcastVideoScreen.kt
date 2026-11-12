@@ -150,10 +150,25 @@ fun PodcastVideoScreen(navController: NavController) {
   var lastKnownPosition by remember { mutableLongStateOf(startPositionMs) }
   var isVideoReady by remember { mutableStateOf(false) }
 
-  val exoPlayer = remember {
-    ExoPlayer.Builder(context).build().apply {
-      playWhenReady = true
+  val trackSelector = remember {
+    androidx.media3.exoplayer.trackselection.DefaultTrackSelector(context).apply {
+      parameters =
+        buildUponParameters()
+          .setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+          .setMaxVideoBitrate(Int.MAX_VALUE)
+          .setForceHighestSupportedBitrate(true)
+          .clearVideoSizeConstraints()
+          .build()
     }
+  }
+
+  val exoPlayer = remember {
+    ExoPlayer.Builder(context)
+      .setTrackSelector(trackSelector)
+      .build()
+      .apply {
+        playWhenReady = true
+      }
   }
 
   var isPlaying by remember { mutableStateOf(true) }
@@ -315,10 +330,10 @@ fun PodcastVideoScreen(navController: NavController) {
     tracks = resolved
     isLoadingTracks = false
 
-    // Default to 720p or 1080p, or highest available
+    // Default to highest available resolution (1080p+ first)
     val defaultTrack =
-      resolved.firstOrNull { it.height == 720 }
-        ?: resolved.firstOrNull { it.height == 1080 }
+      resolved.firstOrNull { it.height >= 1080 }
+        ?: resolved.maxByOrNull { it.height }
         ?: resolved.firstOrNull()
 
     selectedTrack = defaultTrack

@@ -3494,8 +3494,10 @@ private fun BackgroundVideoView(
     DefaultTrackSelector(context).apply {
       parameters =
         buildUponParameters()
-          .setMaxVideoSize(4096, 4096)
+          .setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+          .setMaxVideoBitrate(Int.MAX_VALUE)
           .setForceHighestSupportedBitrate(true)
+          .clearVideoSizeConstraints()
           .build()
     }
   }
@@ -3574,12 +3576,12 @@ private fun BackgroundVideoView(
         isFocusable = false
 
         if (childCount == 0) {
-          val textureView =
-            TextureView(context).apply {
+          val surfaceView =
+            android.view.SurfaceView(context).apply {
               layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
             }
-          addView(textureView)
-          exoPlayer.setVideoTextureView(textureView)
+          addView(surfaceView)
+          exoPlayer.setVideoSurfaceView(surfaceView)
         }
       }
     },

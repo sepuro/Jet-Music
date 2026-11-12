@@ -50,25 +50,64 @@ class MusicFlowSession @Inject constructor(private val source: MusicFlowFeedSour
     get() = _state.value.items.isNotEmpty()
 
   /**
+   * Synchronously aligns the session feed with the real active ExoPlayer queue (`Single Source of Truth`),
+   * preserving the exact queue order and `currentIndex` without resetting or re-ordering active items.
+   */
+  fun syncWithActiveQueue(activeQueueItems: List<MusicFlowItem>, currentIndex: Int) {
+    if (activeQueueItems.isEmpty()) return
+    activeQueueItems.forEach(::markSeen)
+    _state.update { current ->
+      val activeIds = activeQueueItems.mapTo(HashSet()) { it.songId }
+      val extraRecommended = current.items.filter { it.songId !in activeIds }
+      val merged = activeQueueItems + extraRecommended
+      val safeIndex = currentIndex.coerceIn(0, (merged.size - 1).coerceAtLeast(0))
+      current.copy(
+        items = merged,
+        selectedIndex = safeIndex,
+      )
+    }
+  }
+
+  /**
    * Synchronously ensures that if a track is currently playing in ExoPlayer ([nowPlaying]),
-   * it is immediately placed at index 0 (`page = 0`) with `selectedIndex = 0` before the UI
-   * initializes its PagerState, preventing any stale track from taking over playback.
+   * it is present in the session and `selectedIndex` points to its exact index.
    */
   fun prepareEntryWithNowPlaying(nowPlaying: MusicFlowItem?) {
     if (nowPlaying == null) return
     markSeen(nowPlaying)
     _state.update { current ->
-      val currentFirst = current.items.firstOrNull()
-      if (currentFirst?.songId == nowPlaying.songId && current.selectedIndex == 0) {
-        current
+      val existingIndex = current.items.indexOfFirst { it.songId == nowPlaying.songId }
+      if (existingIndex >= 0) {
+        if (current.selectedIndex == existingIndex) current
+        else current.copy(selectedIndex = existingIndex)
       } else {
-        val remaining = current.items.filter { it.songId != nowPlaying.songId }
         current.copy(
-          items = listOf(nowPlaying) + remaining,
+          items = listOf(nowPlaying) + current.items,
           selectedIndex = 0,
         )
       }
     }
+  }
+
+  /**
+   * Ensures the recommendation cursor is initialized for [seed] without clearing or overwriting
+   * the active queue items, then fetches a batch of recommendations to append at the end of the queue.
+   */
+  suspend fun ensureUpcomingForActiveQueue(seed: MusicFlowItem?): List<MusicFlowItem> {
+    mutex.withLock {
+      if (cursor == null) {
+        signals =
+          try {
+            source.signals()
+          } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Timber.tag(TAG).w(e, "Music Flow signals unavailable; continuing without them")
+            MusicFlowSignals(MusicFlowCandidateFilter(), emptySet())
+          }
+        cursor = source.open(seed?.song)
+      }
+    }
+    return loadMore()
   }
 
   suspend fun start(nowPlaying: MusicFlowItem?) {

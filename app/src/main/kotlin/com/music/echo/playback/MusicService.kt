@@ -1552,8 +1552,20 @@ class MusicService : MediaLibraryService(), Player.Listener, PlaybackStatsListen
       stereoWidener.width = if (dataStore.get(SpatialAudioKey, false)) SPATIAL_AUDIO_WIDTH else 1f
     }
 
+    val trackSelector =
+      androidx.media3.exoplayer.trackselection.DefaultTrackSelector(this).apply {
+        parameters =
+          buildUponParameters()
+            .setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+            .setMaxVideoBitrate(Int.MAX_VALUE)
+            .setForceHighestSupportedBitrate(true)
+            .clearVideoSizeConstraints()
+            .build()
+      }
+
     val player =
       ExoPlayer.Builder(this)
+        .setTrackSelector(trackSelector)
         .setMediaSourceFactory(createMediaSourceFactory())
         .setRenderersFactory(
           createRenderersFactory(eqProcessor, silenceProcessor, duckProcessor, stereoWidener)

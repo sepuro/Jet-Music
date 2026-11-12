@@ -13,6 +13,7 @@ import echo.music.iad1tya.db.entities.LyricsEntity
 import echo.music.iad1tya.db.entities.RecommendationExclusionEntity
 import echo.music.iad1tya.extensions.currentMetadata
 import echo.music.iad1tya.extensions.metadata
+import echo.music.iad1tya.extensions.toMediaItem
 import echo.music.iad1tya.lyrics.LyricsHelper
 import echo.music.iad1tya.models.MediaMetadata
 import echo.music.iad1tya.models.toMediaMetadata
@@ -93,9 +94,63 @@ constructor(
   private var consecutiveFailures = 0
 
   fun prepareEntry(playerConnection: PlayerConnection) {
-    val nowPlaying = resolveNowPlaying(playerConnection)
-    if (nowPlaying != null) {
-      session.prepareEntryWithNowPlaying(nowPlaying)
+    val activeQueue = resolveActiveQueueItems(playerConnection)
+    if (activeQueue.isNotEmpty()) {
+      val currentIndex = playerConnection.player.currentMediaItemIndex.coerceIn(0, activeQueue.lastIndex)
+      session.syncWithActiveQueue(activeQueue, currentIndex)
+    } else {
+      val nowPlaying = resolveNowPlaying(playerConnection)
+      if (nowPlaying != null) {
+        session.prepareEntryWithNowPlaying(nowPlaying)
+      }
+    }
+  }
+
+  private fun resolveActiveQueueItems(playerConnection: PlayerConnection): List<MusicFlowItem> {
+    val player = playerConnection.player
+    val count = player.mediaItemCount
+    if (count == 0) return emptyList()
+    val currentMeta = playerConnection.mediaMetadata.value
+    val existingById = session.state.value.items.associateBy { it.songId }
+    return buildList(count) {
+      for (i in 0 until count) {
+        val mediaItem = player.getMediaItemAt(i)
+        val mediaId = mediaItem.mediaId.takeIf { it.isNotBlank() } ?: continue
+        val metadata =
+          mediaItem.metadata
+            ?: currentMeta?.takeIf { it.id == mediaId }
+        val item =
+          when {
+            metadata != null ->
+              MusicFlowItem(
+                song = metadata.toMusicFlowSongItem(),
+                source = if (i == player.currentMediaItemIndex) MusicFlowSource.NOW_PLAYING else MusicFlowSource.CATALOG,
+              )
+            existingById[mediaId] != null -> existingById.getValue(mediaId)
+            else -> {
+              val itemMeta = mediaItem.mediaMetadata
+              MusicFlowItem(
+                song =
+                  com.music.innertube.models.SongItem(
+                    id = mediaId,
+                    title = itemMeta.title?.toString().orEmpty(),
+                    artists =
+                      listOfNotNull(
+                        itemMeta.artist?.toString()?.takeIf { it.isNotBlank() }?.let {
+                          com.music.innertube.models.Artist(name = it, id = null)
+                        }
+                      ),
+                    album = null,
+                    duration = null,
+                    thumbnail = itemMeta.artworkUri?.toString().orEmpty(),
+                    explicit = false,
+                  ),
+                source = if (i == player.currentMediaItemIndex) MusicFlowSource.NOW_PLAYING else MusicFlowSource.CATALOG,
+              )
+            }
+          }
+        add(item)
+      }
     }
   }
 
@@ -160,6 +215,21 @@ constructor(
           refreshStatus(playerConnection.player.currentMediaItem?.mediaId, flowCoordinator)
           canRestore.value = flowCoordinator.canRestorePreviousQueue()
         }
+      }
+
+    attachedJobs +=
+      viewModelScope.launch {
+        combine(
+            playerConnection.queueWindows,
+            playerConnection.currentMediaItemIndex,
+          ) { _, currentIndex -> currentIndex }
+          .collect { currentIndex ->
+            val activeQueue = resolveActiveQueueItems(playerConnection)
+            if (activeQueue.isNotEmpty()) {
+              val safeIndex = currentIndex.coerceIn(0, activeQueue.lastIndex)
+              session.syncWithActiveQueue(activeQueue, safeIndex)
+            }
+          }
       }
 
     attachedJobs +=
@@ -229,23 +299,47 @@ constructor(
   }
 
   private suspend fun enter(playerConnection: PlayerConnection, flowCoordinator: MusicFlowCoordinator) {
+    val activeQueue = resolveActiveQueueItems(playerConnection)
     val nowPlaying = resolveNowPlaying(playerConnection)
     val currentId = playerConnection.player.currentMediaItem?.mediaId ?: nowPlaying?.songId
 
-    if (nowPlaying != null) {
-      session.prepareEntryWithNowPlaying(nowPlaying)
-      prefetchUpcomingVideos(session.state.value.items, 0)
-      if (session.state.value.items.size <= 1) {
-        session.reset(nowPlaying)
+    if (activeQueue.isNotEmpty() || nowPlaying != null) {
+      val currentIndex =
+        playerConnection.player.currentMediaItemIndex
+          .takeIf { it >= 0 }
+          ?.coerceIn(0, (activeQueue.size - 1).coerceAtLeast(0))
+          ?: 0
+
+      if (activeQueue.isNotEmpty()) {
+        session.syncWithActiveQueue(activeQueue, currentIndex)
+      } else {
+        session.prepareEntryWithNowPlaying(nowPlaying)
       }
-      session.select(0)
+
+      prefetchUpcomingVideos(session.state.value.items, currentIndex)
+
+      val remainingAhead = (session.state.value.items.size - 1 - currentIndex).coerceAtLeast(0)
+      if (remainingAhead <= MusicFlowSession.PREFETCH_THRESHOLD) {
+        val appended = withContext(Dispatchers.IO) { session.ensureUpcomingForActiveQueue(nowPlaying) }
+        if (appended.isNotEmpty()) {
+          val existingIds =
+            List(playerConnection.player.mediaItemCount) {
+              playerConnection.player.getMediaItemAt(it).mediaId
+            }.toSet()
+          val newMediaItems = appended.filter { it.songId !in existingIds }.map { it.song.toMediaItem() }
+          if (newMediaItems.isNotEmpty()) {
+            playerConnection.player.addMediaItems(newMediaItems)
+          }
+        }
+      }
+
       val prefs = preferences.first()
       flowCoordinator.syncUpcomingQueueForCurrentTrack(prefs.autoNext)
       canRestore.value = flowCoordinator.canRestorePreviousQueue()
       refreshStatus(currentId, flowCoordinator)
       prefetchIfNeeded()
-      prefetchUpcomingLyrics(session.state.value.items, 1)
-      prefetchUpcomingVideos(session.state.value.items, 0)
+      prefetchUpcomingLyrics(session.state.value.items, currentIndex + 1)
+      prefetchUpcomingVideos(session.state.value.items, currentIndex)
       return
     }
 
@@ -272,15 +366,28 @@ constructor(
       if (items.isNotEmpty()) prefetchIfNeeded()
       return
     }
-    val currentId = connection?.player?.currentMediaItem?.mediaId
-    if (index == session.state.value.selectedIndex && (currentId == null || item.songId == currentId)) {
+    val player = connection?.player
+    val currentId = player?.currentMediaItem?.mediaId
+    val liveIndex = player?.currentMediaItemIndex ?: -1
+    if ((index == liveIndex || index == session.state.value.selectedIndex) && (currentId == null || item.songId == currentId)) {
+      session.select(index)
       prefetchIfNeeded()
       prefetchUpcomingVideos(items, index)
       return
     }
     session.select(index)
     if (item.songId != currentId) {
-      request(item.songId, playWhenReady = preferences.value.autoplay)
+      if (player != null && index in 0 until player.mediaItemCount && index != player.currentMediaItemIndex) {
+        player.seekToDefaultPosition(index)
+        if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+          player.prepare()
+        }
+        if (preferences.value.autoplay && !player.playWhenReady) {
+          player.playWhenReady = true
+        }
+      } else {
+        request(item.songId, playWhenReady = preferences.value.autoplay)
+      }
     }
     prefetchIfNeeded()
     prefetchUpcomingLyrics(items, index + 1)
@@ -373,7 +480,7 @@ constructor(
   }
 
   private fun onActiveMediaChanged(mediaId: String?, flowCoordinator: MusicFlowCoordinator) {
-    if (mediaId != null && flowCoordinator.ownsPlayback()) {
+    if (mediaId != null) {
       val index = session.indexOf(mediaId)
       val pending = requests.value
       val awaitingOtherSong = pending != null && pending.songId != mediaId && playbackStatus.value == MusicFlowPlaybackStatus.Switching
@@ -405,10 +512,23 @@ constructor(
     if (!state.hasMore || state.isLoadingMore || state.isInitialLoading) return
     if (state.items.size - state.selectedIndex > MusicFlowSession.PREFETCH_THRESHOLD) return
     val generation = session.generation
+    val seed = connection?.let(::resolveNowPlaying) ?: state.items.getOrNull(state.selectedIndex)
     viewModelScope.launch(Dispatchers.IO) {
-      val appended = session.loadMore()
-      if (session.generation == generation) {
-        coordinator?.appendIfOwned(appended)
+      val appended = session.ensureUpcomingForActiveQueue(seed)
+      if (session.generation == generation && appended.isNotEmpty()) {
+        withContext(Dispatchers.Main) {
+          val player = connection?.player
+          if (player != null && player.mediaItemCount > 0) {
+            val existingIds =
+              List(player.mediaItemCount) { player.getMediaItemAt(it).mediaId }.toSet()
+            val newMediaItems = appended.filter { it.songId !in existingIds }.map { it.song.toMediaItem() }
+            if (newMediaItems.isNotEmpty()) {
+              player.addMediaItems(newMediaItems)
+            }
+          } else {
+            coordinator?.appendIfOwned(appended)
+          }
+        }
         prefetchUpcomingVideos(session.state.value.items, session.state.value.selectedIndex)
       }
     }

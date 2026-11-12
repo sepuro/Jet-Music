@@ -224,18 +224,16 @@ object NewPipeExtractor {
       }
 
       val chosen =
-        // 1. 1080p MP4
-        videoStreams.filter { isMp4(it) && it.height in 1080..1440 }.maxByOrNull { it.height }
-          // 2. 1080p any container
-          ?: videoStreams.filter { it.height in 1080..1440 }.maxByOrNull { it.height }
-          // 3. 720p MP4
-          ?: videoStreams.filter { isMp4(it) && it.height in 720..1079 }.maxByOrNull { it.height }
-          // 4. 720p any container
-          ?: videoStreams.filter { it.height in 720..1079 }.maxByOrNull { it.height }
-          // 5. Highest MP4
-          ?: videoStreams.filter { isMp4(it) }.maxByOrNull { it.height }
-          // 6. Highest any container
-          ?: videoStreams.maxByOrNull { it.height }
+        videoStreams
+          .filter { !it.content.isNullOrBlank() }
+          .maxWithOrNull(
+            compareBy<org.schabi.newpipe.extractor.stream.VideoStream>(
+              { it.height },
+              { it.fps },
+              { it.itagItem?.bitrate ?: 0 },
+              { if (isMp4(it)) 1 else 0 },
+            )
+          )
 
       val url = chosen?.content
       if (!url.isNullOrBlank()) {

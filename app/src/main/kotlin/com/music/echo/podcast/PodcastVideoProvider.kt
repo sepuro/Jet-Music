@@ -12,7 +12,9 @@ data class VideoTrackOption(
   val height: Int,
   val videoUrl: String,
   val audioUrl: String? = null,
-  val isMuxed: Boolean = true
+  val isMuxed: Boolean = true,
+  val bitrate: Int = 0,
+  val fps: Int = 30,
 )
 
 object PodcastVideoProvider {
@@ -40,7 +42,7 @@ object PodcastVideoProvider {
 
         // Muxed formats (audio + video combined)
         for (f in streamingData.formats.orEmpty()) {
-          val url = f.url ?: continue
+          val url = f.url ?: NewPipeExtractor.getStreamUrl(f, videoId) ?: continue
           val h = f.height ?: continue
           if (h >= 144) {
             results.add(
@@ -49,15 +51,17 @@ object PodcastVideoProvider {
                 height = h,
                 videoUrl = url,
                 audioUrl = null,
-                isMuxed = true
+                isMuxed = true,
+                bitrate = f.bitrate,
+                fps = f.fps ?: 30,
               )
             )
           }
         }
 
-        // Adaptive video formats (1080p, 720p, 480p, 360p, etc.)
-        for (f in streamingData.adaptiveFormats.filter { (it.width != null || it.mimeType.startsWith("video/")) && !it.url.isNullOrBlank() }) {
-          val url = f.url ?: continue
+        // Adaptive video formats (1080p+, 720p, 480p, 360p, etc.)
+        for (f in streamingData.adaptiveFormats.filter { it.width != null || it.height != null || it.mimeType.startsWith("video/") }) {
+          val url = f.url ?: NewPipeExtractor.getStreamUrl(f, videoId) ?: continue
           val h = f.height ?: continue
           if (h >= 144) {
             results.add(
@@ -66,7 +70,9 @@ object PodcastVideoProvider {
                 height = h,
                 videoUrl = url,
                 audioUrl = bestAudio,
-                isMuxed = false
+                isMuxed = false,
+                bitrate = f.bitrate,
+                fps = f.fps ?: 30,
               )
             )
           }
@@ -101,14 +107,17 @@ object PodcastVideoProvider {
       }
     }
 
-    // Deduplicate by resolution height and pick best stream
+    // Deduplicate by resolution height and pick best highest-bitrate stream
     val distinctTracks = results
       .groupBy { it.height }
       .mapNotNull { (_, tracks) ->
-        // Prefer MP4/muxed if available, or first valid
-        tracks.firstOrNull { it.videoUrl.contains("mp4", ignoreCase = true) && it.isMuxed }
-          ?: tracks.firstOrNull { it.videoUrl.contains("mp4", ignoreCase = true) }
-          ?: tracks.firstOrNull()
+        tracks.maxWithOrNull(
+          compareBy<VideoTrackOption>(
+            { it.fps },
+            { it.bitrate },
+            { if (it.videoUrl.contains("mp4", ignoreCase = true)) 1 else 0 },
+          )
+        )
       }
       .sortedByDescending { it.height }
 

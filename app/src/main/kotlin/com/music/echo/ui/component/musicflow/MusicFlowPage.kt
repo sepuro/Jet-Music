@@ -173,7 +173,7 @@ fun MusicFlowPage(
         artistName = artistName,
         albumTitle = song.album?.name,
         durationSec = song.duration?.toLong(),
-        isPlayingOverride = if (isCurrentPlayback) isPlaying else true,
+        isPlayingOverride = if (isCurrentPlayback) isPlaying else false,
         onVideoReadyChanged = { isVideoReady = it },
       )
     }

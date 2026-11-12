@@ -4,6 +4,7 @@ import com.music.innertube.NewPipeExtractor
 import com.music.innertube.YouTube
 import com.music.innertube.models.SongItem
 import com.music.innertube.models.YouTubeClient
+import com.music.innertube.models.response.PlayerResponse
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
@@ -152,6 +153,16 @@ object YouTubeVideoCanvasProvider {
     return foundIds.toList()
   }
 
+  private fun codecPriority(mimeType: String): Int {
+    val lower = mimeType.lowercase(Locale.ROOT)
+    return when {
+      lower.contains("av01") -> 3
+      lower.contains("vp9") || lower.contains("vp09") -> 2
+      lower.contains("avc1") || lower.contains("mp4") -> 1
+      else -> 0
+    }
+  }
+
   private suspend fun resolveVideoStreamForId(
     targetVideoId: String,
     fallbackDurationSec: Long
@@ -160,12 +171,14 @@ object YouTubeVideoCanvasProvider {
 
     val clients = listOf(
       YouTubeClient.VISIONOS,
-      YouTubeClient.TVHTML5,
       YouTubeClient.ANDROID_VR_1_65_10,
+      YouTubeClient.TVHTML5,
       YouTubeClient.ANDROID_VR_1_43_32,
       YouTubeClient.IOS,
       YouTubeClient.WEB_REMIX
     )
+
+    var bestFallbackPair: Pair<PlayerResponse.StreamingData.Format, Long>? = null
 
     for (client in clients) {
       try {
@@ -176,29 +189,54 @@ object YouTubeVideoCanvasProvider {
           totalDurationSec = response.videoDetails?.lengthSeconds?.toLongOrNull() ?: 0L
         }
 
-        val formats = (streamingData.formats.orEmpty() + streamingData.adaptiveFormats)
-          .filter { format ->
-            val isVideo = format.width != null || format.height != null || format.mimeType.startsWith("video/")
-            val hasUrl = !format.url.isNullOrBlank()
-            isVideo && hasUrl
+        val adaptiveFormats = streamingData.adaptiveFormats + streamingData.formats.orEmpty()
+        val bestVideoFormat =
+          adaptiveFormats
+            .filter { it.mimeType.startsWith("video/") || it.height != null || it.width != null }
+            .mapNotNull { format ->
+              val resolvedUrl =
+                format.url?.takeIf { it.isNotBlank() }
+                  ?: NewPipeExtractor.getStreamUrl(format, targetVideoId)?.takeIf { it.isNotBlank() }
+                  ?: return@mapNotNull null
+              format.copy(url = resolvedUrl)
+            }
+            .maxWithOrNull(
+              compareBy<PlayerResponse.StreamingData.Format>(
+                { it.height ?: 0 },
+                { it.fps ?: 0 },
+                { codecPriority(it.mimeType) },
+                { it.bitrate },
+              )
+            )
+
+        val url = bestVideoFormat?.url
+        if (bestVideoFormat != null && !url.isNullOrBlank()) {
+          val height = bestVideoFormat.height ?: 0
+          Timber.tag(TAG).d(
+            "Found (${height}p @ ${bestVideoFormat.fps ?: 30}fps, ${bestVideoFormat.bitrate}bps) video stream via InnerTube (${client.clientName}) for $targetVideoId"
+          )
+          if (height >= 1080) {
+            return Pair(url, totalDurationSec)
           }
-
-        val candidate = formats
-          .filter { it.mimeType.contains("mp4", ignoreCase = true) && (it.height ?: 0) in 720..1440 }
-          .maxByOrNull { it.height ?: 0 }
-          ?: formats.filter { (it.height ?: 0) in 720..1440 }.maxByOrNull { it.height ?: 0 }
-          ?: formats.filter { it.mimeType.contains("mp4", ignoreCase = true) && (it.height ?: 0) >= 360 }
-            .maxByOrNull { it.height ?: 0 }
-          ?: formats.filter { it.mimeType.contains("mp4", ignoreCase = true) }.maxByOrNull { it.height ?: 0 }
-          ?: formats.maxByOrNull { it.height ?: 0 }
-
-        val url = candidate?.url
-        if (!url.isNullOrBlank()) {
-          Timber.tag(TAG).d("Found (${candidate.height}p) video stream via InnerTube (${client.clientName}) for $targetVideoId")
-          return Pair(url, totalDurationSec)
+          val currentBestHeight = bestFallbackPair?.first?.height ?: 0
+          val currentBestBitrate = bestFallbackPair?.first?.bitrate ?: 0
+          if (
+            bestFallbackPair == null ||
+              height > currentBestHeight ||
+              (height == currentBestHeight && bestVideoFormat.bitrate > currentBestBitrate)
+          ) {
+            bestFallbackPair = Pair(bestVideoFormat, totalDurationSec)
+          }
         }
       } catch (e: Exception) {
         Timber.tag(TAG).w(e, "InnerTube client ${client.clientName} failed for $targetVideoId")
+      }
+    }
+
+    bestFallbackPair?.let { (format, dur) ->
+      val url = format.url
+      if (!url.isNullOrBlank()) {
+        return Pair(url, dur)
       }
     }
 
@@ -261,20 +299,13 @@ object YouTubeVideoCanvasProvider {
         return@withContext null
       }
 
-      // Calculate 15-second clip around the center of the video for rich full-screen playback
-      val totalDurationMs = if (totalDurationSec > 0) totalDurationSec * 1000L else 180_000L
-      val clipDurationMs = 15_000L
-      val centerMs = totalDurationMs / 2
-      val startMs = (centerMs - clipDurationMs / 2).coerceAtLeast(0L)
-      val endMs = (startMs + clipDurationMs).coerceAtMost(totalDurationMs)
-
       val artwork = CanvasArtwork(
         name = title,
         artist = artist,
         videoUrl = resolvedVideoUrl,
         animated = resolvedVideoUrl,
-        clipStartMs = startMs,
-        clipEndMs = endMs
+        clipStartMs = null,
+        clipEndMs = null
       )
 
       cache[videoId] = artwork

@@ -1,17 +1,14 @@
 package echo.music.iad1tya.ui.player
 
-import android.graphics.Matrix
-import android.view.TextureView
+import android.view.SurfaceView
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.widget.FrameLayout
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,47 +24,17 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.ui.AspectRatioFrameLayout
 import com.music.innertube.YouTube
-import com.music.innertube.models.YouTubeClient
 import echo.music.iad1tya.LocalPlayerConnection
-import java.util.Locale
+import kotlin.math.abs
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import okhttp3.OkHttpClient
-
-private fun updateTextureTransform(
-  textureView: TextureView,
-  viewWidth: Int,
-  viewHeight: Int,
-  videoWidth: Int,
-  videoHeight: Int,
-) {
-  if (viewWidth <= 0 || viewHeight <= 0 || videoWidth <= 0 || videoHeight <= 0) return
-
-  val viewRatio = viewWidth.toFloat() / viewHeight
-  val videoRatio = videoWidth.toFloat() / videoHeight
-
-  var scaleX = 1f
-  var scaleY = 1f
-
-  if (viewRatio > videoRatio) {
-    scaleY = viewRatio / videoRatio
-  } else {
-    scaleX = videoRatio / viewRatio
-  }
-
-  // Cinematic letterbox cropping:
-  // Many 16:9 YouTube music videos have 2.35:1 or 2.39:1 letterbox bars.
-  // 16/9 = 1.78, active 2.35:1 picture height = 16 / 2.35 = 6.8 vs 9 -> 9 / 6.8 = 1.32x.
-  // Zooming by 1.32x crops those bars away completely while keeping the central subject focused.
-  val letterboxCrop = if (videoRatio > 1.2f) 1.32f else 1.0f
-  scaleX *= letterboxCrop
-  scaleY *= letterboxCrop
-
-  val matrix = Matrix()
-  matrix.setScale(scaleX, scaleY, viewWidth / 2f, viewHeight / 2f)
-  textureView.setTransform(matrix)
-}
 
 @Composable
 fun CanvasArtworkPlayer(
@@ -80,14 +47,13 @@ fun CanvasArtworkPlayer(
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
+  val playerConnection = LocalPlayerConnection.current
   val primary = primaryUrl?.takeIf { it.isNotBlank() }
   val fallback = fallbackUrl?.takeIf { it.isNotBlank() }
   val initial = primary ?: fallback ?: return
   var currentUrl by remember(initial) { mutableStateOf(initial) }
   var isVideoReady by remember(initial) { mutableStateOf(false) }
-  var textureViewRef by remember { mutableStateOf<TextureView?>(null) }
-  var currentVideoWidth by remember { mutableIntStateOf(0) }
-  var currentVideoHeight by remember { mutableIntStateOf(0) }
+  var surfaceViewRef by remember { mutableStateOf<SurfaceView?>(null) }
 
   LaunchedEffect(isVideoReady) {
     onVideoReadyChanged(isVideoReady)
@@ -123,7 +89,8 @@ fun CanvasArtworkPlayer(
       }
       .build()
   }
-  val downloadCache = LocalPlayerConnection.current?.service?.downloadCache
+
+  val downloadCache = playerConnection?.service?.downloadCache
   val mediaSourceFactory =
     remember(okHttpClient, downloadCache) {
       val upstreamFactory =
@@ -143,27 +110,77 @@ fun CanvasArtworkPlayer(
         }
       DefaultMediaSourceFactory(dataSourceFactory)
     }
+
+  val trackSelector = remember {
+    DefaultTrackSelector(context).apply {
+      parameters =
+        buildUponParameters()
+          .setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+          .setMaxVideoBitrate(Int.MAX_VALUE)
+          .setForceHighestSupportedBitrate(true)
+          .clearVideoSizeConstraints()
+          .build()
+    }
+  }
+
   val exoPlayer = remember {
-    ExoPlayer.Builder(context).setMediaSourceFactory(mediaSourceFactory).build().apply {
-      trackSelectionParameters =
-        trackSelectionParameters.buildUpon().setForceHighestSupportedBitrate(true).build()
-      setAudioAttributes(
-        AudioAttributes.Builder()
-          .setUsage(C.USAGE_MEDIA)
-          .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-          .build(),
-        false,
-      )
-      videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
-      volume = 0f
-      repeatMode = Player.REPEAT_MODE_ONE
-      playWhenReady = isPlaying
+    ExoPlayer.Builder(context)
+      .setTrackSelector(trackSelector)
+      .setMediaSourceFactory(mediaSourceFactory)
+      .setLoadControl(DefaultLoadControl.Builder().setTargetBufferBytes(32 * 1024 * 1024).build())
+      .build()
+      .apply {
+        trackSelectionParameters =
+          trackSelectionParameters
+            .buildUpon()
+            .setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+            .setMaxVideoBitrate(Int.MAX_VALUE)
+            .setForceHighestSupportedBitrate(true)
+            .clearVideoSizeConstraints()
+            .build()
+        setAudioAttributes(
+          AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build(),
+          false,
+        )
+        videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+        volume = 0f
+        repeatMode = Player.REPEAT_MODE_ONE
+        playWhenReady = isPlaying
+      }
+  }
+
+  val aspectRatioFrameLayout = remember {
+    AspectRatioFrameLayout(context).apply {
+      layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+      resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+      setBackgroundColor(android.graphics.Color.TRANSPARENT)
     }
   }
 
   LaunchedEffect(isPlaying) {
     if (exoPlayer.playWhenReady != isPlaying) {
       exoPlayer.playWhenReady = isPlaying
+    }
+  }
+
+  // Synchronize OMV / full-length video position with mainPlayer.currentPosition & mainPlayer.isPlaying
+  LaunchedEffect(exoPlayer, playerConnection, isPlaying, clipStartMs, clipEndMs) {
+    if (clipStartMs != null && clipEndMs != null) return@LaunchedEffect
+    val mainPlayer = playerConnection?.player ?: return@LaunchedEffect
+    while (isActive) {
+      val videoDuration = exoPlayer.duration
+      if (exoPlayer.playbackState == Player.STATE_READY && videoDuration >= 30_000L) {
+        val mainPos = mainPlayer.currentPosition.coerceAtLeast(0L)
+        val targetPos = if (videoDuration > 0L) mainPos % videoDuration else mainPos
+        val drift = abs(exoPlayer.currentPosition - targetPos)
+        if (drift > 2_000L) {
+          exoPlayer.seekTo(targetPos)
+        }
+      }
+      delay(1_000L)
     }
   }
 
@@ -188,11 +205,7 @@ fun CanvasArtworkPlayer(
 
         override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
           if (videoSize.width > 0 && videoSize.height > 0) {
-            currentVideoWidth = videoSize.width
-            currentVideoHeight = videoSize.height
-            textureViewRef?.let { tv ->
-              updateTextureTransform(tv, tv.width, tv.height, videoSize.width, videoSize.height)
-            }
+            aspectRatioFrameLayout.setAspectRatio(videoSize.width.toFloat() / videoSize.height)
           }
         }
 
@@ -213,13 +226,13 @@ fun CanvasArtworkPlayer(
     val normalized = currentUrl.trim()
     val mimeType =
       when {
-        normalized.contains("googlevideo.com", ignoreCase = true) ||
-          normalized.contains("mime=video", ignoreCase = true) ||
-          normalized.contains(".mp4", ignoreCase = true) ||
-          normalized.contains("mp4", ignoreCase = true) -> MimeTypes.VIDEO_MP4
+        normalized.contains("mime=video%2Fwebm", ignoreCase = true) ||
+          normalized.contains("mime=video/webm", ignoreCase = true) ||
+          normalized.contains(".webm", ignoreCase = true) -> MimeTypes.VIDEO_WEBM
         normalized.contains(".m3u8", ignoreCase = true) ||
-          normalized.contains("m3u8", ignoreCase = true) -> MimeTypes.APPLICATION_M3U8
-        normalized.contains("apple.com") || normalized.contains("music.apple") -> MimeTypes.APPLICATION_M3U8
+          normalized.contains("m3u8", ignoreCase = true) ||
+          normalized.contains("apple.com", ignoreCase = true) ||
+          normalized.contains("music.apple", ignoreCase = true) -> MimeTypes.APPLICATION_M3U8
         else -> MimeTypes.VIDEO_MP4
       }
 
@@ -237,7 +250,13 @@ fun CanvasArtworkPlayer(
 
     exoPlayer.stop()
     isVideoReady = false
-    exoPlayer.setMediaItem(mediaItem)
+    val startPositionMs =
+      if (clipStartMs == null && clipEndMs == null) {
+        playerConnection?.player?.currentPosition?.takeIf { it > 0L } ?: 0L
+      } else {
+        0L
+      }
+    exoPlayer.setMediaItem(mediaItem, startPositionMs)
     exoPlayer.prepare()
     exoPlayer.playWhenReady = isPlaying
   }
@@ -245,8 +264,8 @@ fun CanvasArtworkPlayer(
   DisposableEffect(exoPlayer) {
     onDispose {
       onVideoReadyChanged(false)
-      textureViewRef?.let { exoPlayer.clearVideoTextureView(it) }
-      textureViewRef = null
+      surfaceViewRef?.let { exoPlayer.clearVideoSurfaceView(it) }
+      surfaceViewRef = null
       exoPlayer.release()
     }
   }
@@ -260,33 +279,28 @@ fun CanvasArtworkPlayer(
 
   AndroidView(
     factory = { viewContext ->
-      FrameLayout(viewContext).apply {
-        layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-        clipChildren = true
-
-        val textureView =
-          TextureView(viewContext).apply {
-            layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-            addOnLayoutChangeListener { _, left, top, right, bottom, _, _, _, _ ->
-              val w = right - left
-              val h = bottom - top
-              updateTextureTransform(this, w, h, currentVideoWidth, currentVideoHeight)
+      aspectRatioFrameLayout.apply {
+        isEnabled = false
+        isClickable = false
+        isFocusable = false
+        if (childCount == 0) {
+          val surfaceView =
+            SurfaceView(viewContext).apply {
+              layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
             }
-          }
-        addView(textureView)
-        textureViewRef = textureView
-        exoPlayer.setVideoTextureView(textureView)
-        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+          addView(surfaceView)
+          surfaceViewRef = surfaceView
+          exoPlayer.setVideoSurfaceView(surfaceView)
+        }
       }
     },
     update = { frameLayout ->
-      val tv = (frameLayout.getChildAt(0) as? TextureView) ?: textureViewRef
-      if (tv != null) {
-        if (textureViewRef !== tv) {
-          textureViewRef = tv
+      val sv = (frameLayout.getChildAt(0) as? SurfaceView) ?: surfaceViewRef
+      if (sv != null) {
+        if (surfaceViewRef !== sv) {
+          surfaceViewRef = sv
         }
-        exoPlayer.setVideoTextureView(tv)
-        updateTextureTransform(tv, tv.width, tv.height, currentVideoWidth, currentVideoHeight)
+        exoPlayer.setVideoSurfaceView(sv)
       }
     },
     modifier = modifier.alpha(alpha),
