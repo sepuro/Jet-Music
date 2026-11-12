@@ -1,6 +1,7 @@
 package echo.music.iad1tya.ui.player
 
-import android.view.SurfaceView
+import android.graphics.Matrix
+import android.view.TextureView
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import androidx.compose.animation.core.animateFloatAsState
@@ -9,11 +10,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.AudioAttributes
@@ -36,6 +38,32 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import okhttp3.OkHttpClient
 
+private fun updateTextureTransform(
+  textureView: TextureView,
+  viewWidth: Int,
+  viewHeight: Int,
+  videoWidth: Int,
+  videoHeight: Int,
+) {
+  if (viewWidth <= 0 || viewHeight <= 0 || videoWidth <= 0 || videoHeight <= 0) return
+
+  val viewRatio = viewWidth.toFloat() / viewHeight
+  val videoRatio = videoWidth.toFloat() / videoHeight
+
+  var scaleX = 1f
+  var scaleY = 1f
+
+  if (viewRatio > videoRatio) {
+    scaleY = viewRatio / videoRatio
+  } else {
+    scaleX = videoRatio / viewRatio
+  }
+
+  val matrix = Matrix()
+  matrix.setScale(scaleX, scaleY, viewWidth / 2f, viewHeight / 2f)
+  textureView.setTransform(matrix)
+}
+
 @Composable
 fun CanvasArtworkPlayer(
   primaryUrl: String?,
@@ -53,7 +81,9 @@ fun CanvasArtworkPlayer(
   val initial = primary ?: fallback ?: return
   var currentUrl by remember(initial) { mutableStateOf(initial) }
   var isVideoReady by remember(initial) { mutableStateOf(false) }
-  var surfaceViewRef by remember { mutableStateOf<SurfaceView?>(null) }
+  var textureViewRef by remember { mutableStateOf<TextureView?>(null) }
+  var currentVideoWidth by remember { mutableIntStateOf(0) }
+  var currentVideoHeight by remember { mutableIntStateOf(0) }
 
   LaunchedEffect(isVideoReady) {
     onVideoReadyChanged(isVideoReady)
@@ -156,6 +186,9 @@ fun CanvasArtworkPlayer(
     AspectRatioFrameLayout(context).apply {
       layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
       resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+      clipChildren = true
+      isVerticalFadingEdgeEnabled = true
+      setFadingEdgeLength((resources.displayMetrics.density * 140).toInt())
       setBackgroundColor(android.graphics.Color.TRANSPARENT)
     }
   }
@@ -205,7 +238,12 @@ fun CanvasArtworkPlayer(
 
         override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
           if (videoSize.width > 0 && videoSize.height > 0) {
+            currentVideoWidth = videoSize.width
+            currentVideoHeight = videoSize.height
             aspectRatioFrameLayout.setAspectRatio(videoSize.width.toFloat() / videoSize.height)
+            textureViewRef?.let { tv ->
+              updateTextureTransform(tv, tv.width, tv.height, videoSize.width, videoSize.height)
+            }
           }
         }
 
@@ -264,8 +302,8 @@ fun CanvasArtworkPlayer(
   DisposableEffect(exoPlayer) {
     onDispose {
       onVideoReadyChanged(false)
-      surfaceViewRef?.let { exoPlayer.clearVideoSurfaceView(it) }
-      surfaceViewRef = null
+      textureViewRef?.let { exoPlayer.clearVideoTextureView(it) }
+      textureViewRef = null
       exoPlayer.release()
     }
   }
@@ -283,26 +321,42 @@ fun CanvasArtworkPlayer(
         isEnabled = false
         isClickable = false
         isFocusable = false
+        isVerticalFadingEdgeEnabled = true
+        setFadingEdgeLength((resources.displayMetrics.density * 140).toInt())
         if (childCount == 0) {
-          val surfaceView =
-            SurfaceView(viewContext).apply {
+          val textureView =
+            TextureView(viewContext).apply {
               layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+              isOpaque = false
+              isVerticalFadingEdgeEnabled = true
+              setFadingEdgeLength((resources.displayMetrics.density * 140).toInt())
+              addOnLayoutChangeListener { _, left, top, right, bottom, _, _, _, _ ->
+                val w = right - left
+                val h = bottom - top
+                updateTextureTransform(this, w, h, currentVideoWidth, currentVideoHeight)
+              }
             }
-          addView(surfaceView)
-          surfaceViewRef = surfaceView
-          exoPlayer.setVideoSurfaceView(surfaceView)
+          addView(textureView)
+          textureViewRef = textureView
+          exoPlayer.setVideoTextureView(textureView)
         }
       }
     },
     update = { frameLayout ->
-      val sv = (frameLayout.getChildAt(0) as? SurfaceView) ?: surfaceViewRef
-      if (sv != null) {
-        if (surfaceViewRef !== sv) {
-          surfaceViewRef = sv
+      frameLayout.isVerticalFadingEdgeEnabled = true
+      frameLayout.setFadingEdgeLength((frameLayout.resources.displayMetrics.density * 140).toInt())
+      val tv = (frameLayout.getChildAt(0) as? TextureView) ?: textureViewRef
+      if (tv != null) {
+        tv.isOpaque = false
+        tv.isVerticalFadingEdgeEnabled = true
+        tv.setFadingEdgeLength((tv.resources.displayMetrics.density * 140).toInt())
+        if (textureViewRef !== tv) {
+          textureViewRef = tv
         }
-        exoPlayer.setVideoSurfaceView(sv)
+        exoPlayer.setVideoTextureView(tv)
+        updateTextureTransform(tv, tv.width, tv.height, currentVideoWidth, currentVideoHeight)
       }
     },
-    modifier = modifier.alpha(alpha),
+    modifier = modifier.graphicsLayer { this.alpha = alpha },
   )
 }

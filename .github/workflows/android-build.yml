@@ -131,12 +131,13 @@ jobs:
         VERSION=$(grep 'versionName =' app/build.gradle.kts | head -1 | cut -d'"' -f2)
         VERSION_CODE=$(grep 'versionCode =' app/build.gradle.kts | head -1 | awk '{print $3}')
         TAG="v${VERSION}"
-        TITLE="Jet Music v${VERSION} — True Queue Sync in Music Flow, 1080p+ Max Bitrate Video & Instagram in About"
+        TITLE="Jet Music v${VERSION} — Seamless TextureView + BlendMode.DstIn Alpha Fade on Player Video & Canvas"
         NOTES="## Jet Music v${VERSION}
 
         ### Novedades de esta versión
+        - **Difuminado Alfa Real sin Costuras en Video del Reproductor (\`TextureView\` + \`BlendMode.DstIn\`)**: Migración del renderizador de video/canvas del reproductor (\`CanvasArtworkPlayer\` y \`BackgroundVideoView\`) de \`SurfaceView\` a \`TextureView\` integrado en el pipeline \`RenderNode\` de Jetpack Compose (\`CompositingStrategy.Offscreen\` + \`BlendMode.DstIn\` multi-parada y \`isVerticalFadingEdgeEnabled = true\`), eliminando el corte horizontal recto encima del \`Slider\` y manteniendo 1080p+ de alto bitrate (\`RESIZE_MODE_ZOOM\`).
         - **Sincronización Absoluta de Music Flow (\`Single Source of Truth\`)**: \`VerticalPager\` conectado directamente a la cola activa real de \`ExoPlayer\` (\`queueWindows\` / \`currentMediaItemIndex\`). Cero reinicio o cambio de pista al entrar; las recomendaciones adicionales se añaden exclusivamente al final de la cola con \`player.addMediaItems(...)\`.
-        - **Máxima Calidad de Video (1080p+ / Full HD / Alto Bitrate)**: Selección prioritaria de streams adaptativos \`height >= 1080\`, 60fps y códecs modernos (\`av01\` / \`vp9\` / \`avc1\`) en InnerTube y NewPipe, \`DefaultTrackSelector\` forzado al máximo bitrate y renderizado nativo por hardware en \`SurfaceView\` (\`RESIZE_MODE_ZOOM\`) sincronizado con \`mainPlayer\`.
+        - **Máxima Calidad de Video (1080p+ / Full HD / Alto Bitrate)**: Selección prioritaria de streams adaptativos \`height >= 1080\`, 60fps y códecs modernos (\`av01\` / \`vp9\` / \`avc1\`) en InnerTube y NewPipe, \`DefaultTrackSelector\` forzado al máximo bitrate sincronizado con \`mainPlayer\`.
         - **Tarjeta de Instagram en Sobre (\`AboutScreen\`)**: Tarjeta integrada de Instagram (\`instagram.com/amalejandroo\`) junto a GitHub y Website en el bloque de **Jet Music**.
         - **Actualización OTA In-Place (\`versionCode = ${VERSION_CODE}\`)**: Firmado con el certificado oficial único (\`v1\`/\`v2\`/\`v3\`) para actualización directa vía OTA."
 

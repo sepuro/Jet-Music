@@ -1373,23 +1373,24 @@ fun BottomSheetPlayer(
                   Box(
                     modifier =
                       Modifier.fillMaxWidth()
-                        .fillMaxHeight(0.68f)
-                        .alpha(clearArtworkAlpha)
-                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                        .fillMaxHeight(0.76f)
+                        .graphicsLayer {
+                          alpha = clearArtworkAlpha
+                          compositingStrategy = CompositingStrategy.Offscreen
+                        }
                         .drawWithCache {
-                          val maskBrush =
+                          val alphaMask =
                             Brush.verticalGradient(
-                              colorStops =
-                                arrayOf(
-                                  0.00f to Color.Black,
-                                  0.70f to Color.Black,
-                                  0.88f to Color.Black.copy(alpha = 0.4f),
-                                  1.00f to Color.Transparent,
-                                )
+                              0.00f to Color.Black,
+                              0.45f to Color.Black,
+                              0.62f to Color.Black.copy(alpha = 0.75f),
+                              0.78f to Color.Black.copy(alpha = 0.35f),
+                              0.90f to Color.Black.copy(alpha = 0.08f),
+                              1.00f to Color.Transparent,
                             )
                           onDrawWithContent {
                             drawContent()
-                            drawRect(brush = maskBrush, blendMode = BlendMode.DstIn)
+                            drawRect(brush = alphaMask, blendMode = BlendMode.DstIn)
                           }
                         }
                   ) {
@@ -1415,17 +1416,6 @@ fun BottomSheetPlayer(
                       )
                     }
                   }
-
-                  Box(
-                    modifier =
-                      Modifier.fillMaxSize().drawWithCache {
-                        val overlayBrush =
-                          Brush.verticalGradient(
-                            listOf(Color.Black.copy(alpha = 0.05f), Color.Black.copy(alpha = 0.4f))
-                          )
-                        onDrawBehind { drawRect(overlayBrush) }
-                      }
-                  )
                 }
               }
             }
@@ -3489,6 +3479,7 @@ private fun BackgroundVideoView(
 ) {
   val context = LocalContext.current
   var isVideoReady by remember(videoUrl) { mutableStateOf(false) }
+  var textureViewRef by remember { mutableStateOf<TextureView?>(null) }
 
   val trackSelector = remember {
     DefaultTrackSelector(context).apply {
@@ -3518,6 +3509,8 @@ private fun BackgroundVideoView(
   val aspectRatioFrameLayout = remember {
     AspectRatioFrameLayout(context).apply {
       resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+      isVerticalFadingEdgeEnabled = true
+      setFadingEdgeLength((resources.displayMetrics.density * 140).toInt())
       setBackgroundColor(android.graphics.Color.TRANSPARENT)
     }
   }
@@ -3556,7 +3549,8 @@ private fun BackgroundVideoView(
 
   DisposableEffect(Unit) {
     onDispose {
-      exoPlayer.clearVideoSurface()
+      textureViewRef?.let { exoPlayer.clearVideoTextureView(it) }
+      textureViewRef = null
       exoPlayer.release()
     }
   }
@@ -3574,18 +3568,38 @@ private fun BackgroundVideoView(
         isEnabled = false
         isClickable = false
         isFocusable = false
+        isVerticalFadingEdgeEnabled = true
+        setFadingEdgeLength((resources.displayMetrics.density * 140).toInt())
 
         if (childCount == 0) {
-          val surfaceView =
-            android.view.SurfaceView(context).apply {
+          val textureView =
+            TextureView(context).apply {
               layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+              isOpaque = false
+              isVerticalFadingEdgeEnabled = true
+              setFadingEdgeLength((resources.displayMetrics.density * 140).toInt())
             }
-          addView(surfaceView)
-          exoPlayer.setVideoSurfaceView(surfaceView)
+          addView(textureView)
+          textureViewRef = textureView
+          exoPlayer.setVideoTextureView(textureView)
         }
       }
     },
-    modifier = modifier.alpha(alpha)
+    update = { frameLayout ->
+      frameLayout.isVerticalFadingEdgeEnabled = true
+      frameLayout.setFadingEdgeLength((frameLayout.resources.displayMetrics.density * 140).toInt())
+      val tv = (frameLayout.getChildAt(0) as? TextureView) ?: textureViewRef
+      if (tv != null) {
+        tv.isOpaque = false
+        tv.isVerticalFadingEdgeEnabled = true
+        tv.setFadingEdgeLength((tv.resources.displayMetrics.density * 140).toInt())
+        if (textureViewRef !== tv) {
+          textureViewRef = tv
+        }
+        exoPlayer.setVideoTextureView(tv)
+      }
+    },
+    modifier = modifier.graphicsLayer { this.alpha = alpha }
   )
 }
 
