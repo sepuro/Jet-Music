@@ -51,6 +51,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -107,9 +108,11 @@ import echo.music.iad1tya.ui.component.musicflow.MusicFlowPageActions
 import echo.music.iad1tya.ui.component.musicflow.MusicFlowPagePlaceholder
 import echo.music.iad1tya.ui.component.musicflow.MusicFlowTopMenu
 import echo.music.iad1tya.ui.menu.AddToPlaylistDialog
+import echo.music.iad1tya.constants.MusicFlowAutoplayKey
 import echo.music.iad1tya.ui.menu.YouTubeSongMenu
 import echo.music.iad1tya.ui.player.InlineLyricsView
 import echo.music.iad1tya.utils.SyncUtils
+import echo.music.iad1tya.utils.rememberPreference
 import echo.music.iad1tya.viewmodels.MusicFlowViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -144,7 +147,8 @@ fun MusicFlowScreen(
 
   val state by viewModel.uiState.collectAsState()
   val preferences by viewModel.preferences.collectAsState()
-  val autoPlay = preferences.autoplay
+  val (autoPlayPreference) = rememberPreference(MusicFlowAutoplayKey, defaultValue = true)
+  val autoPlayEnabled = autoPlayPreference && preferences.autoplay
   val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
   val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
   val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
@@ -152,17 +156,22 @@ fun MusicFlowScreen(
   val queueWindows by playerConnection.queueWindows.collectAsState()
   val currentMediaId = playerConnection.player.currentMediaItem?.mediaId ?: mediaMetadata?.id
 
-  LaunchedEffect(playerConnection) {
+  LaunchedEffect(playerConnection, autoPlayEnabled) {
     val player = playerConnection.player
-    if (viewModel.preferences.value.autoplay && player.mediaItemCount > 0 && !player.isPlaying) {
-      if (
-        player.playbackState == androidx.media3.common.Player.STATE_IDLE ||
-          player.playbackState == androidx.media3.common.Player.STATE_ENDED
-      ) {
-        player.prepare()
+    if (autoPlayEnabled) {
+      if (player.mediaItemCount > 0 && !player.isPlaying) {
+        if (
+          player.playbackState == androidx.media3.common.Player.STATE_IDLE ||
+            player.playbackState == androidx.media3.common.Player.STATE_ENDED
+        ) {
+          player.prepare()
+        }
+        player.playWhenReady = true
+        player.play()
       }
-      player.playWhenReady = true
-      player.play()
+    } else {
+      player.playWhenReady = false
+      player.pause()
     }
   }
 
@@ -248,13 +257,9 @@ fun MusicFlowScreen(
       pageCount = { pageCount },
     )
 
-  var userHasScrolled by remember { mutableStateOf(false) }
-  LaunchedEffect(pagerState) {
-    snapshotFlow { pagerState.isScrollInProgress }
-      .collect { scrolling ->
-        if (scrolling) userHasScrolled = true
-      }
-  }
+  var isSyncingPagerToPlayer by remember { mutableStateOf(false) }
+  val currentAutoPlayEnabled by rememberUpdatedState(autoPlayEnabled)
+  val currentItems by rememberUpdatedState(items)
 
   LaunchedEffect(pagerState, items.size) {
     snapshotFlow { pagerState.currentPage }
@@ -270,35 +275,53 @@ fun MusicFlowScreen(
     snapshotFlow { pagerState.settledPage }
       .distinctUntilChanged()
       .collect { settledPage ->
-        val livePlayerIndex = playerConnection.player.currentMediaItemIndex
-        if (userHasScrolled && settledPage in items.indices && settledPage != livePlayerIndex) {
-          userHasScrolled = false
-          val player = playerConnection.player
-          val shouldAutoPlay = viewModel.preferences.value.autoplay
-          player.seekToDefaultPosition(settledPage)
-          if (
-            player.playbackState == androidx.media3.common.Player.STATE_IDLE ||
-              player.playbackState == androidx.media3.common.Player.STATE_ENDED
-          ) {
-            player.prepare()
-          }
+        val activeItems = currentItems
+        if (isSyncingPagerToPlayer || settledPage !in activeItems.indices) return@collect
+        val player = playerConnection.player
+        val livePlayerIndex = player.currentMediaItemIndex
+        val targetSongId = activeItems[settledPage].songId
+        if (settledPage != livePlayerIndex || player.currentMediaItem?.mediaId != targetSongId) {
+          val shouldAutoPlay = currentAutoPlayEnabled && viewModel.isAutoPlayEnabled
           if (shouldAutoPlay) {
+            if (settledPage in 0 until player.mediaItemCount) {
+              player.seekToDefaultPosition(settledPage)
+              if (
+                player.playbackState == androidx.media3.common.Player.STATE_IDLE ||
+                  player.playbackState == androidx.media3.common.Player.STATE_ENDED
+              ) {
+                player.prepare()
+              }
+            }
             player.playWhenReady = true
             player.play()
           } else {
             player.playWhenReady = false
             player.pause()
+            if (settledPage in 0 until player.mediaItemCount) {
+              player.seekToDefaultPosition(settledPage)
+              if (
+                player.playbackState == androidx.media3.common.Player.STATE_IDLE ||
+                  player.playbackState == androidx.media3.common.Player.STATE_ENDED
+              ) {
+                player.prepare()
+                player.pause()
+              }
+            }
           }
-          viewModel.onPageSettled(settledPage)
+          viewModel.onPageSettled(settledPage, shouldAutoPlay)
         }
       }
   }
 
-  LaunchedEffect(currentIndex, items.size) {
+  LaunchedEffect(currentIndex) {
     if (currentIndex in items.indices && !pagerState.isScrollInProgress && pagerState.settledPage != currentIndex) {
-      userHasScrolled = false
-      if (reduceMotion) pagerState.scrollToPage(currentIndex)
-      else pagerState.animateScrollToPage(currentIndex)
+      isSyncingPagerToPlayer = true
+      try {
+        if (reduceMotion) pagerState.scrollToPage(currentIndex)
+        else pagerState.animateScrollToPage(currentIndex)
+      } finally {
+        isSyncingPagerToPlayer = false
+      }
     }
   }
 
@@ -337,13 +360,19 @@ fun MusicFlowScreen(
               val librarySong by database.song(item.songId).collectAsState(initial = null)
               val download by downloadUtil.getDownload(item.songId).collectAsState(initial = null)
               val isCurrent = page == activePageIndex || item.songId == currentMediaId
+              val pageIsPlaying =
+                isCurrent &&
+                  isPlaying &&
+                  playerConnection.player.playWhenReady &&
+                  item.songId == currentMediaId &&
+                  (autoPlayEnabled || pagerState.settledPage == currentIndex)
               val currentLyricsText = if (isCurrent) currentLyrics?.lyrics else null
               val songDuration = remember(item.song.duration) { (item.song.duration ?: 0) * 1000L }
 
               MusicFlowPage(
                 item = item,
                 isCurrentPlayback = isCurrent,
-                isPlaying = isPlaying,
+                isPlaying = pageIsPlaying,
                 isLiked = librarySong?.song?.liked == true,
                 downloadState = download?.state,
                 showCanvas = showCanvas && (page == pagerState.settledPage || page == activePageIndex),

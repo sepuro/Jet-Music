@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -226,9 +227,14 @@ fun CanvasArtworkPlayer(
     }
   }
 
+  val currentIsPlaying by rememberUpdatedState(isPlaying)
+
   LaunchedEffect(isPlaying) {
-    if (exoPlayer.playWhenReady != isPlaying) {
-      exoPlayer.playWhenReady = isPlaying
+    exoPlayer.playWhenReady = isPlaying
+    if (isPlaying) {
+      exoPlayer.play()
+    } else {
+      exoPlayer.pause()
     }
   }
 
@@ -281,11 +287,22 @@ fun CanvasArtworkPlayer(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-          if (playbackState == Player.STATE_READY && exoPlayer.videoSize.width > 0 && exoPlayer.videoSize.height > 0) {
-            isVideoReady = true
+          if (playbackState == Player.STATE_READY) {
+            if (!currentIsPlaying) {
+              exoPlayer.playWhenReady = false
+              exoPlayer.pause()
+            }
+            if (exoPlayer.videoSize.width > 0 && exoPlayer.videoSize.height > 0) {
+              isVideoReady = true
+            }
           } else if (playbackState == Player.STATE_ENDED) {
             exoPlayer.seekTo(0)
-            exoPlayer.play()
+            if (currentIsPlaying && exoPlayer.playWhenReady) {
+              exoPlayer.play()
+            } else {
+              exoPlayer.playWhenReady = false
+              exoPlayer.pause()
+            }
           }
         }
       }
@@ -327,9 +344,12 @@ fun CanvasArtworkPlayer(
       } else {
         0L
       }
+    exoPlayer.playWhenReady = currentIsPlaying
     exoPlayer.setMediaItem(mediaItem, startPositionMs)
     exoPlayer.prepare()
-    exoPlayer.playWhenReady = isPlaying
+    if (!currentIsPlaying) {
+      exoPlayer.pause()
+    }
   }
 
   DisposableEffect(exoPlayer) {

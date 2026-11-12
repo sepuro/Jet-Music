@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import echo.music.iad1tya.R
 import echo.music.iad1tya.canvas.YouTubeVideoCanvasProvider
+import echo.music.iad1tya.constants.MusicFlowAutoplayKey
 import echo.music.iad1tya.db.MusicDatabase
 import echo.music.iad1tya.db.entities.LyricsEntity
 import echo.music.iad1tya.db.entities.RecommendationExclusionEntity
@@ -29,7 +30,9 @@ import echo.music.iad1tya.musicflow.toMusicFlowSongItem
 import echo.music.iad1tya.musicflow.trackKey
 import echo.music.iad1tya.playback.PlayerConnection
 import echo.music.iad1tya.ui.player.CanvasArtworkPlaybackCache
+import echo.music.iad1tya.utils.currentPreferences
 import echo.music.iad1tya.utils.dataStore
+import echo.music.iad1tya.utils.get
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -66,7 +69,14 @@ constructor(
   val preferences: StateFlow<MusicFlowPreferences> =
     context.dataStore.data
       .map(MusicFlowPreferences::from)
-      .stateIn(viewModelScope, SharingStarted.Eagerly, MusicFlowPreferences())
+      .stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        MusicFlowPreferences.from(context.dataStore.currentPreferences()),
+      )
+
+  val isAutoPlayEnabled: Boolean
+    get() = context.dataStore.get(MusicFlowAutoplayKey, preferences.value.autoplay) && preferences.value.autoplay
 
   private val playbackStatus = MutableStateFlow<MusicFlowPlaybackStatus>(MusicFlowPlaybackStatus.Idle)
   private val canRestore = MutableStateFlow(false)
@@ -205,6 +215,10 @@ constructor(
       viewModelScope.launch {
         requests.filterNotNull().collectLatest { request ->
           delay(SETTLE_DEBOUNCE_MS)
+          if (!request.playWhenReady) {
+            playerConnection.player.playWhenReady = false
+            playerConnection.player.pause()
+          }
           playbackStatus.value =
             flowCoordinator.select(
               requestId = request.requestId,
@@ -212,6 +226,10 @@ constructor(
               playWhenReady = request.playWhenReady,
               autoNext = preferences.value.autoNext,
             )
+          if (!request.playWhenReady) {
+            playerConnection.player.playWhenReady = false
+            playerConnection.player.pause()
+          }
           refreshStatus(playerConnection.player.currentMediaItem?.mediaId, flowCoordinator)
           canRestore.value = flowCoordinator.canRestorePreviousQueue()
         }
@@ -299,6 +317,10 @@ constructor(
   }
 
   private suspend fun enter(playerConnection: PlayerConnection, flowCoordinator: MusicFlowCoordinator) {
+    if (!isAutoPlayEnabled) {
+      playerConnection.player.playWhenReady = false
+      playerConnection.player.pause()
+    }
     val activeQueue = resolveActiveQueueItems(playerConnection)
     val nowPlaying = resolveNowPlaying(playerConnection)
     val currentId = playerConnection.player.currentMediaItem?.mediaId ?: nowPlaying?.songId
@@ -333,8 +355,8 @@ constructor(
         }
       }
 
-      val prefs = preferences.first()
-      if (prefs.autoplay && playerConnection.player.mediaItemCount > 0 && !playerConnection.player.isPlaying) {
+      val prefs = preferences.value
+      if (isAutoPlayEnabled && playerConnection.player.mediaItemCount > 0 && !playerConnection.player.isPlaying) {
         if (
           playerConnection.player.playbackState == Player.STATE_IDLE ||
             playerConnection.player.playbackState == Player.STATE_ENDED
@@ -343,6 +365,9 @@ constructor(
         }
         playerConnection.player.playWhenReady = true
         playerConnection.player.play()
+      } else if (!isAutoPlayEnabled) {
+        playerConnection.player.playWhenReady = false
+        playerConnection.player.pause()
       }
       flowCoordinator.syncUpcomingQueueForCurrentTrack(prefs.autoNext)
       canRestore.value = flowCoordinator.canRestorePreviousQueue()
@@ -360,16 +385,21 @@ constructor(
     refreshStatus(currentId, flowCoordinator)
 
     val selected = uiState.value.selectedSongId ?: return
-    val prefs = preferences.first()
-    if (prefs.autoplay && !playerConnection.isPlaying.value && currentId == null) {
+    if (isAutoPlayEnabled && !playerConnection.isPlaying.value && currentId == null) {
       request(selected, playWhenReady = true)
+    } else if (!isAutoPlayEnabled) {
+      playerConnection.player.playWhenReady = false
+      playerConnection.player.pause()
+      if (currentId == null) {
+        request(selected, playWhenReady = false)
+      }
     }
     prefetchIfNeeded()
     prefetchUpcomingLyrics(session.state.value.items, session.state.value.selectedIndex + 1)
     prefetchUpcomingVideos(session.state.value.items, session.state.value.selectedIndex)
   }
 
-  fun onPageSettled(index: Int) {
+  fun onPageSettled(index: Int, autoPlayOverride: Boolean? = null) {
     val items = session.state.value.items
     val item = items.getOrNull(index)
     if (item == null) {
@@ -379,8 +409,12 @@ constructor(
     val player = connection?.player
     val currentId = player?.currentMediaItem?.mediaId
     val liveIndex = player?.currentMediaItemIndex ?: -1
-    val shouldAutoPlay = preferences.value.autoplay
-    if ((index == liveIndex || index == session.state.value.selectedIndex) && (currentId == null || item.songId == currentId)) {
+    val shouldAutoPlay = autoPlayOverride ?: isAutoPlayEnabled
+    if (!shouldAutoPlay && player != null) {
+      player.playWhenReady = false
+      player.pause()
+    }
+    if ((index == liveIndex || index == session.state.value.selectedIndex) && (currentId != null && item.songId == currentId)) {
       session.select(index)
       prefetchIfNeeded()
       prefetchUpcomingLyrics(items, index + 1)
@@ -390,16 +424,21 @@ constructor(
     session.select(index)
     if (item.songId != currentId) {
       if (player != null && index in 0 until player.mediaItemCount && index != player.currentMediaItemIndex) {
-        player.seekToDefaultPosition(index)
-        if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
-          player.prepare()
-        }
         if (shouldAutoPlay) {
+          player.seekToDefaultPosition(index)
+          if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+            player.prepare()
+          }
           player.playWhenReady = true
           player.play()
         } else {
           player.playWhenReady = false
           player.pause()
+          player.seekToDefaultPosition(index)
+          if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+            player.prepare()
+            player.pause()
+          }
         }
       } else {
         request(item.songId, playWhenReady = shouldAutoPlay)
@@ -482,7 +521,7 @@ constructor(
     val next = (index + 1 until items.size).firstOrNull { !session.isHidden(items[it].songId) }
     if (next != null) {
       session.select(next)
-      request(items[next].songId, playWhenReady = true)
+      request(items[next].songId, playWhenReady = isAutoPlayEnabled)
       prefetchIfNeeded()
     } else {
       prefetchIfNeeded()

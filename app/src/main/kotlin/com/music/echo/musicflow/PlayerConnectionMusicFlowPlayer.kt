@@ -35,19 +35,34 @@ class PlayerConnectionMusicFlowPlayer(
   override fun seekTo(queueIndex: Int, playWhenReady: Boolean) {
     val player = connection.player
     if (queueIndex !in 0 until player.mediaItemCount) return
-    if (queueIndex != player.currentMediaItemIndex) {
-      player.seekToDefaultPosition(queueIndex)
-    }
-    if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
-      player.prepare()
-    }
-    if (player.playWhenReady != playWhenReady) {
-      player.playWhenReady = playWhenReady
+    if (playWhenReady) {
+      if (queueIndex != player.currentMediaItemIndex) {
+        player.seekToDefaultPosition(queueIndex)
+      }
+      if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+        player.prepare()
+      }
+      player.playWhenReady = true
+      player.play()
+    } else {
+      player.playWhenReady = false
+      player.pause()
+      if (queueIndex != player.currentMediaItemIndex) {
+        player.seekToDefaultPosition(queueIndex)
+      }
+      if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+        player.prepare()
+        player.pause()
+      }
     }
   }
 
   override fun startQueue(items: List<MusicFlowItem>, startIndex: Int, playWhenReady: Boolean): Any {
     val player = connection.player
+    if (!playWhenReady) {
+      player.playWhenReady = false
+      player.pause()
+    }
     if (player.mediaItemCount > 0) {
       val existingIds = queueMediaIds().toSet()
       val newMediaItems = items.filter { it.songId !in existingIds }.map { it.song.toMediaItem() }
@@ -56,13 +71,34 @@ class PlayerConnectionMusicFlowPlayer(
       }
       val targetId = items.getOrNull(startIndex)?.songId
       val targetIdx = if (targetId != null) queueMediaIds().indexOf(targetId) else -1
-      if (targetIdx >= 0 && targetIdx != player.currentMediaItemIndex) {
-        player.seekToDefaultPosition(targetIdx)
+      if (playWhenReady) {
+        if (targetIdx >= 0 && targetIdx != player.currentMediaItemIndex) {
+          player.seekToDefaultPosition(targetIdx)
+        }
+        if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+          player.prepare()
+        }
+        player.playWhenReady = true
+        player.play()
+      } else {
+        player.playWhenReady = false
+        player.pause()
+        if (targetIdx >= 0 && targetIdx != player.currentMediaItemIndex) {
+          player.seekToDefaultPosition(targetIdx)
+        }
+        if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+          player.prepare()
+          player.pause()
+        }
       }
       return service.activeQueue.value ?: MusicFlowQueue(queueTitle, items, startIndex, session)
     }
     val queue = MusicFlowQueue(queueTitle, items, startIndex, session)
     service.playQueue(queue, playWhenReady)
+    if (!playWhenReady) {
+      player.playWhenReady = false
+      player.pause()
+    }
     return queue
   }
 
