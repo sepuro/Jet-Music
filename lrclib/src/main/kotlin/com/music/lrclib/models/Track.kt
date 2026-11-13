@@ -4,7 +4,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.serialization.Serializable
 
-private const val DURATION_TOLERANCE_SECONDS = 8
+private const val DURATION_TOLERANCE_SECONDS = 15
 
 @Serializable
 data class Track(
@@ -32,7 +32,7 @@ internal fun List<Track>.bestMatchingFor(duration: Int): Track? {
     ?.takeIf { abs(it.duration.roundToInt() - duration) <= 2 }
 }
 
-// Relaxed matching with ±8 seconds tolerance
+// Relaxed matching with ±15 seconds tolerance
 internal fun List<Track>.bestMatchingForRelaxed(
   duration: Int,
   trackName: String? = null,
@@ -64,12 +64,14 @@ internal fun List<Track>.bestSyncedMatch(
   duration: Int,
   trackName: String? = null,
   artistName: String? = null,
+  toleranceSeconds: Int = DURATION_TOLERANCE_SECONDS,
 ): Track? {
-  val syncedTracks = filter { !it.syncedLyrics.isNullOrBlank() && it.matchesDuration(duration) }
+  val syncedTracks =
+    filter { !it.syncedLyrics.isNullOrBlank() && it.matchesDuration(duration, toleranceSeconds) }
   if (syncedTracks.isEmpty()) return null
 
   if (trackName != null && artistName != null) {
-    return syncedTracks.findBestMatch(trackName, artistName, duration)
+    return syncedTracks.findBestMatch(trackName, artistName, duration, toleranceSeconds)
   }
 
   return if (duration <= 0) {
@@ -100,6 +102,7 @@ private fun List<Track>.findBestMatch(
   trackName: String,
   artistName: String,
   duration: Int = -1,
+  toleranceSeconds: Int = DURATION_TOLERANCE_SECONDS,
 ): Track? {
   val normalizedTrackName = trackName.trim().lowercase()
   val normalizedArtistName = artistName.trim().lowercase()
@@ -132,7 +135,7 @@ private fun List<Track>.findBestMatch(
       if (!track.syncedLyrics.isNullOrBlank()) score += 0.25
       if (duration > 0) {
         val diff = abs(track.duration.roundToInt() - duration)
-        score += (1.0 - (diff.toDouble() / DURATION_TOLERANCE_SECONDS.toDouble())) * 0.15
+        score += (1.0 - (diff.toDouble() / toleranceSeconds.coerceAtLeast(1).toDouble())) * 0.15
       }
       track to score
     }

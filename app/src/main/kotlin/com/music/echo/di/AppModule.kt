@@ -137,6 +137,7 @@ object AppModule {
               db.query("PRAGMA wal_autocheckpoint = 1000").close()
               db.query("PRAGMA synchronous = NORMAL").close()
               db.execSQL("DELETE FROM format WHERE (codecs = 'alac' OR bitrate = 1411200) AND id NOT LIKE 'local_%'")
+              echo.music.iad1tya.db.InternalDatabase.purgeUnsyncedLyrics(db)
             } catch (e: Exception) {
               timber.log.Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
             }

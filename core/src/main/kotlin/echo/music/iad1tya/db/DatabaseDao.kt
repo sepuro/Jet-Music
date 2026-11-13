@@ -714,6 +714,12 @@ interface DatabaseDao {
   @Query("SELECT * FROM lyrics WHERE id = :id")
   fun lyrics(id: String?): Flow<LyricsEntity?>
 
+  @Query("SELECT * FROM lyrics WHERE id = :id")
+  suspend fun getLyricsById(id: String): LyricsEntity?
+
+  @Query("DELETE FROM lyrics WHERE lyrics NOT LIKE '%[0%' AND lyrics NOT LIKE '%[1%'")
+  fun deleteUnsyncedLyrics()
+
   @Transaction
   @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
   @Query(

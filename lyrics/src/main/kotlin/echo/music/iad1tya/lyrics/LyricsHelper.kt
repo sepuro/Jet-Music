@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.LruCache
 import dagger.hilt.android.qualifiers.ApplicationContext
 import echo.music.iad1tya.constants.FetchFasterLyricsKey
+import echo.music.iad1tya.db.MusicDatabase
+import echo.music.iad1tya.db.entities.LyricsEntity
 import echo.music.iad1tya.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import echo.music.iad1tya.models.MediaMetadata
 import echo.music.iad1tya.playback.LyricsWithProvider
@@ -26,6 +28,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 class LyricsHelper
@@ -33,6 +36,7 @@ class LyricsHelper
 constructor(
   @ApplicationContext private val context: Context,
   private val networkConnectivity: NetworkConnectivityObserver,
+  private val database: MusicDatabase,
 ) {
 
   private suspend fun resolveLyricsProviders(): List<LyricsProvider> {
@@ -40,6 +44,15 @@ constructor(
     return defaultOrder
       .mapNotNull { LyricsProviderRegistry.getProviderByName(it) }
       .filter { it.isEnabled(context) }
+      .sortedBy { provider ->
+        when (provider.name) {
+          LrcLibLyricsProvider.name -> 0
+          KuGouLyricsProvider.name -> 1
+          YouTubeSubtitleLyricsProvider.name -> 8
+          YouTubeLyricsProvider.name -> 9
+          else -> 2
+        }
+      }
   }
 
   private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
@@ -47,12 +60,31 @@ constructor(
   private val fetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
   private var currentLyricsJob: Job? = null
 
+  init {
+    fetchScope.launch {
+      runCatching { database.deleteUnsyncedLyrics() }
+    }
+  }
+
   suspend fun getLyrics(mediaMetadata: MediaMetadata): LyricsWithProvider {
     currentLyricsJob?.cancel()
 
     val cached = cache.get(mediaMetadata.id)?.firstOrNull()
     if (cached != null) {
-      return LyricsWithProvider(cached.lyrics, cached.providerName)
+      if (LyricsEntity.hasSyncedLrcTimestamps(cached.lyrics)) {
+        return LyricsWithProvider(cached.lyrics, cached.providerName)
+      }
+      // Evict stale plain-text entries so providers can be queried again for synced LRC.
+      cache.remove(mediaMetadata.id)
+    }
+
+    val existingDbLyrics = runCatching { database.getLyricsById(mediaMetadata.id) }.getOrNull()
+    if (existingDbLyrics != null && LyricsEntity.hasSyncedLrcTimestamps(existingDbLyrics.lyrics)) {
+      cache.put(
+        mediaMetadata.id,
+        listOf(LyricsResult(existingDbLyrics.provider, existingDbLyrics.lyrics)),
+      )
+      return LyricsWithProvider(existingDbLyrics.lyrics, existingDbLyrics.provider)
     }
 
     val isNetworkAvailable =
@@ -78,7 +110,28 @@ constructor(
           it.start()
         }
     if (existing != null) created.cancel()
-    return shared.await()
+    val result = shared.await()
+    val fetchedLyrics = result.lyrics
+    if (
+      !fetchedLyrics.isNullOrBlank() &&
+        fetchedLyrics != LYRICS_NOT_FOUND &&
+        (existingDbLyrics == null ||
+          !LyricsEntity.hasSyncedLrcTimestamps(existingDbLyrics.lyrics) ||
+          LyricsEntity.hasSyncedLrcTimestamps(fetchedLyrics))
+    ) {
+      runCatching {
+        withContext(Dispatchers.IO) {
+          database.upsert(
+            LyricsEntity(
+              id = mediaMetadata.id,
+              lyrics = fetchedLyrics,
+              provider = result.providerName,
+            )
+          )
+        }
+      }
+    }
+    return result
   }
 
   private suspend fun fetchFirstSyncedLyrics(mediaMetadata: MediaMetadata): LyricsWithProvider {
@@ -86,7 +139,10 @@ constructor(
     if (providers.isEmpty()) return LyricsWithProvider(LYRICS_NOT_FOUND, "Unknown")
 
     return coroutineScope {
-      val channel = Channel<LyricsWithProvider?>(providers.size)
+      val youtubeProviders = setOf(YouTubeLyricsProvider.name, YouTubeSubtitleLyricsProvider.name)
+      var nonYouTubeRemaining = providers.count { it.name !in youtubeProviders }
+      var syncedYouTubeResult: LyricsWithProvider? = null
+      val channel = Channel<Pair<String, LyricsWithProvider?>>(providers.size)
       providers.forEach { provider ->
         launch {
           val lyrics = fetchLyricsFromProvider(provider, mediaMetadata)
@@ -94,40 +150,66 @@ constructor(
             lyrics
               ?.takeIf { it != LYRICS_NOT_FOUND && it.isNotBlank() }
               ?.let { LyricsWithProvider(it, provider.name) }
-          channel.send(result)
+          channel.send(provider.name to result)
         }
       }
 
-      val receivedUnsynced = mutableListOf<LyricsWithProvider>()
+      val fallbackPlainLyrics = mutableListOf<LyricsWithProvider>()
       repeat(providers.size) {
-        val result = channel.receive() ?: return@repeat
-        if (result.lyrics?.let(LyricsUtils::hasSyncedLyrics) == true) {
-          coroutineContext.cancelChildren()
-          cache.put(mediaMetadata.id, listOf(LyricsResult(result.providerName, result.lyrics.orEmpty())))
-          return@coroutineScope result
+        val (providerName, result) = channel.receive()
+        if (providerName !in youtubeProviders) {
+          nonYouTubeRemaining--
         }
-        receivedUnsynced.add(result)
+
+        if (result != null) {
+          val text = result.lyrics.orEmpty()
+          if (LyricsEntity.hasSyncedLrcTimestamps(text)) {
+            if (providerName !in youtubeProviders) {
+              coroutineContext.cancelChildren()
+              cache.put(mediaMetadata.id, listOf(LyricsResult(result.providerName, text)))
+              return@coroutineScope result
+            } else {
+              syncedYouTubeResult =
+                listOfNotNull(syncedYouTubeResult, result).minByOrNull {
+                  providerPriorityIndex(providers, it.providerName)
+                }
+            }
+          } else {
+            // Never short-circuit on plain text; keep it only as last-resort fallback.
+            fallbackPlainLyrics.add(result)
+          }
+        }
+
+        val readyYouTubeSynced = syncedYouTubeResult
+        if (nonYouTubeRemaining <= 0 && readyYouTubeSynced != null) {
+          coroutineContext.cancelChildren()
+          cache.put(
+            mediaMetadata.id,
+            listOf(LyricsResult(readyYouTubeSynced.providerName, readyYouTubeSynced.lyrics.orEmpty())),
+          )
+          return@coroutineScope readyYouTubeSynced
+        }
       }
 
-      val best =
-        receivedUnsynced
-          .minWithOrNull(
-            compareBy<LyricsWithProvider>(
-              {
-                when (it.providerName) {
-                  YouTubeLyricsProvider.name -> 2
-                  YouTubeSubtitleLyricsProvider.name -> 1
-                  else -> 0
-                }
-              },
-              { providerPriorityIndex(providers, it.providerName) },
-            )
-          )
-          ?: LyricsWithProvider(LYRICS_NOT_FOUND, "Unknown")
-      if (best.lyrics != null && best.lyrics != LYRICS_NOT_FOUND) {
-        cache.put(mediaMetadata.id, listOf(LyricsResult(best.providerName, best.lyrics.orEmpty())))
+      syncedYouTubeResult?.let { synced ->
+        cache.put(mediaMetadata.id, listOf(LyricsResult(synced.providerName, synced.lyrics.orEmpty())))
+        return@coroutineScope synced
       }
-      best
+
+      fallbackPlainLyrics
+        .minWithOrNull(
+          compareBy<LyricsWithProvider>(
+            {
+              when (it.providerName) {
+                YouTubeLyricsProvider.name -> 2
+                YouTubeSubtitleLyricsProvider.name -> 1
+                else -> 0
+              }
+            },
+            { providerPriorityIndex(providers, it.providerName) },
+          )
+        )
+        ?: LyricsWithProvider(LYRICS_NOT_FOUND, "Unknown")
     }
   }
 

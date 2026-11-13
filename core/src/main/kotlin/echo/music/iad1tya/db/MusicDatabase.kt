@@ -50,11 +50,42 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Date
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import timber.log.Timber
 
 class MusicDatabase(
   private val delegate: InternalDatabase,
 ) : DatabaseDao by delegate.dao {
+  private val revalidatedUnsyncedIds = ConcurrentHashMap.newKeySet<String>()
+
+  /**
+   * Hides cached plain-text lyrics until they have been revalidated once in the current session,
+   * forcing callers to re-query synced providers and overwrite stale static entries.
+   */
+  override fun lyrics(id: String?): Flow<LyricsEntity?> =
+    delegate.dao.lyrics(id).map { entity ->
+      if (
+        entity != null &&
+          !LyricsEntity.hasSyncedLrcTimestamps(entity.lyrics) &&
+          entity.id !in revalidatedUnsyncedIds
+      ) {
+        null
+      } else {
+        entity
+      }
+    }
+
+  override fun upsert(lyrics: LyricsEntity) {
+    if (LyricsEntity.hasSyncedLrcTimestamps(lyrics.lyrics)) {
+      revalidatedUnsyncedIds.remove(lyrics.id)
+    } else {
+      revalidatedUnsyncedIds.add(lyrics.id)
+    }
+    delegate.dao.upsert(lyrics)
+  }
+
   val speedDialDao: SpeedDialDao
     get() = delegate.speedDialDao
 
@@ -206,41 +237,18 @@ abstract class InternalDatabase : RoomDatabase() {
                   } catch (e: Exception) {
                     Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
                   }
-                  purgeStaticLyricsCacheOnce(context, db)
+                  purgeUnsyncedLyrics(db)
                 }
               }
             )
             .build(),
       )
 
-    private const val LYRICS_CACHE_PREFS = "lyrics_cache_maintenance"
-    private const val KEY_PURGED_STATIC_LYRICS = "purged_static_lyrics_v1"
-
-    private fun purgeStaticLyricsCacheOnce(context: Context, db: SupportSQLiteDatabase) {
+    fun purgeUnsyncedLyrics(db: SupportSQLiteDatabase) {
       try {
-        val prefs = context.getSharedPreferences(LYRICS_CACHE_PREFS, Context.MODE_PRIVATE)
-        if (prefs.getBoolean(KEY_PURGED_STATIC_LYRICS, false)) return
-
-        db.beginTransaction()
-        try {
-          db.execSQL(
-            """
-            DELETE FROM lyrics
-            WHERE lyrics = '${LyricsEntity.LYRICS_NOT_FOUND}'
-               OR trim(lyrics) = ''
-               OR (
-                 lyrics NOT GLOB '*[[][0-9][0-9]:[0-9][0-9][.:][0-9][0-9]*'
-                 AND lyrics NOT GLOB '*[[][0-9]:[0-9][0-9][.:][0-9][0-9]*'
-               )
-            """.trimIndent()
-          )
-          db.setTransactionSuccessful()
-        } finally {
-          db.endTransaction()
-        }
-        prefs.edit().putBoolean(KEY_PURGED_STATIC_LYRICS, true).apply()
+        db.execSQL("DELETE FROM lyrics WHERE lyrics NOT LIKE '%[0%' AND lyrics NOT LIKE '%[1%'")
       } catch (e: Exception) {
-        Timber.tag("MusicDatabase").e(e, "Failed to purge static lyrics cache")
+        Timber.tag("MusicDatabase").e(e, "Failed to purge unsynced lyrics cache")
       }
     }
   }

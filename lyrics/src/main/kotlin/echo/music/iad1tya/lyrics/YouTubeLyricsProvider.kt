@@ -22,7 +22,7 @@ object YouTubeLyricsProvider : LyricsProvider {
       if (lyricsEndpoint != null) {
         YouTube.lyrics(endpoint = lyricsEndpoint, videoId = id).getOrNull()
       } else {
-        YouTube.captionLyrics(id).getOrNull()
+        YouTube.captionLyrics(id).getOrNull() ?: YouTube.transcript(id).getOrNull()
       }
     lyrics?.takeIf { it.isNotBlank() } ?: throw IllegalStateException("Lyrics unavailable")
   }

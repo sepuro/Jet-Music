@@ -249,6 +249,16 @@ object YouTubeLyricsParser {
           val rawText = node.textContent.orEmpty()
           formatLrcLine(startMs, rawText)?.let(lines::add)
         }
+        if (lines.isEmpty()) {
+          val textNodes = doc.getElementsByTagName("text")
+          for (i in 0 until textNodes.length) {
+            val node = textNodes.item(i) as? Element ?: continue
+            val startSec = node.getAttribute("start").toDoubleOrNull() ?: continue
+            val startMs = (startSec * 1000.0).toLong()
+            val rawText = node.textContent.orEmpty()
+            formatLrcLine(startMs, rawText)?.let(lines::add)
+          }
+        }
       }
 
     if (parsed.isSuccess && lines.isNotEmpty()) {
@@ -257,7 +267,7 @@ object YouTubeLyricsParser {
 
     // Lightweight regex fallback for malformed XML fragments
     val pRegex = Regex("<p\\b[^>]*\\bt=\"(\\d+)\"[^>]*>(.*?)</p>", setOf(RegexOption.DOT_MATCHES_ALL))
-    val fallbackLines =
+    val pLines =
       pRegex
         .findAll(trimmed)
         .mapNotNull { match ->
@@ -266,8 +276,22 @@ object YouTubeLyricsParser {
           formatLrcLine(startMs, text)
         }
         .toList()
+    if (pLines.isNotEmpty()) {
+      return pLines.joinToString("\n")
+    }
 
-    return fallbackLines.takeIf { it.isNotEmpty() }?.joinToString("\n")
+    val textRegex = Regex("<text\\b[^>]*\\bstart=\"([\\d.]+)\"[^>]*>(.*?)</text>", setOf(RegexOption.DOT_MATCHES_ALL))
+    val textLines =
+      textRegex
+        .findAll(trimmed)
+        .mapNotNull { match ->
+          val startSec = match.groupValues[1].toDoubleOrNull() ?: return@mapNotNull null
+          val text = HTML_TAG_REGEX.replace(match.groupValues[2], "")
+          formatLrcLine((startSec * 1000.0).toLong(), text)
+        }
+        .toList()
+
+    return textLines.takeIf { it.isNotEmpty() }?.joinToString("\n")
   }
 
   private fun cleanCueText(rawText: String): String {

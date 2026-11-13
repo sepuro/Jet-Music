@@ -21,8 +21,16 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.Json
 
 object LrcLib {
-  private const val DURATION_TOLERANCE_SECONDS = 8
+  private const val DURATION_TOLERANCE_SECONDS = 15
 
+  private val JUNK_PARENS_REGEX =
+    Regex(
+      """\s*\((?:[^()]*\b(?:official\s*(?:music\s*)?video|official\s*audio|video\s*oficial|audio\s*oficial|official|video|audio|lyrics?|lyric\s*video|visualizer|hd|4k|1080p|720p|letra)\b[^()]*)\)""",
+      RegexOption.IGNORE_CASE,
+    )
+  private val FEAT_PARENS_REGEX =
+    Regex("""\s*\(\s*(?:feat\.?|ft\.?|featuring)\b[^()]*\)""", RegexOption.IGNORE_CASE)
+  private val ALL_PARENS_REGEX = Regex("""\s*\(.*?\)""")
   private val NOISY_PARENS_REGEX =
     Regex(
       """\s*\((?:[^()]*\b(?:official|video|audio|lyrics?|lyric|visualizer|hd|4k|1080p|720p|remix|live|acoustic|explicit|clean|remaster(?:ed)?|deluxe|radio\s+edit|extended|slowed|sped\s+up|nightcore|version|letra|en\s+vivo)\b[^()]*)\)""",
@@ -53,11 +61,37 @@ object LrcLib {
     }
   }
 
+  /**
+   * Level 2 cleaner: strips video/audio junk tags while preserving version parentheses like (Remix).
+   */
+  internal fun cleanTitleKeepingVersionTags(title: String, artist: String = ""): String {
+    var working = title.trim()
+    val artistPrefix = extractPrimaryArtist(artist, working)
+    if (artistPrefix.isNotBlank() && working.startsWith("$artistPrefix - ", ignoreCase = true)) {
+      working = working.substring(artistPrefix.length + 3)
+    }
+    return working
+      .replace(JUNK_PARENS_REGEX, " ")
+      .replace(FEAT_PARENS_REGEX, " ")
+      .replace(SQUARE_BRACKETS_REGEX, " ")
+      .replace(CJK_BRACKETS_REGEX, " ")
+      .replace(FEAT_SUFFIX_REGEX, "")
+      .replace(MULTI_SPACE_REGEX, " ")
+      .trim()
+      .trimEnd('-', '–', '—', '|', '/')
+      .trim()
+      .ifBlank { title.trim() }
+  }
+
+  /**
+   * Level 3 cleaner: strips all parenthetical/bracketed suffixes (including remixes/versions).
+   */
   internal fun cleanTitleForSearch(title: String, artist: String = ""): String {
     val metadataCleaned = MetadataCleaner.clean(title, artist).toSearchQuery().first
     val stripped =
       metadataCleaned
         .replace(NOISY_PARENS_REGEX, " ")
+        .replace(ALL_PARENS_REGEX, " ")
         .replace(SQUARE_BRACKETS_REGEX, " ")
         .replace(CJK_BRACKETS_REGEX, " ")
         .replace(FEAT_SUFFIX_REGEX, "")
@@ -178,7 +212,14 @@ object LrcLib {
     val rawArtist = artist.trim()
     var plainFallback: String? = null
 
-    // Attempt 1: Original title and artist (/api/get and /api/search with ±8s tolerance)
+    fun recordPlainFallback(tracks: List<Track>, matchTitle: String, matchArtist: String) {
+      if (plainFallback != null) return
+      plainFallback =
+        tracks.bestMatchingForRelaxed(duration, matchTitle, matchArtist)?.plainLyrics
+          ?.takeIf { it.isNotBlank() }
+    }
+
+    // Level 1: Exact /api/search?track_name=$title&artist_name=$artist (±15s duration tolerance, synced only)
     val exactOriginal = getTrackExact(rawTitle, rawArtist, duration)
     if (exactOriginal != null) {
       if (!exactOriginal.syncedLyrics.isNullOrBlank()) {
@@ -189,77 +230,83 @@ object LrcLib {
       }
     }
 
-    val originalSearchTracks =
-      queryLyricsWithParams(trackName = rawTitle, artistName = rawArtist)
-        .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
-
-    originalSearchTracks.bestSyncedMatch(duration, rawTitle, rawArtist)?.syncedLyrics?.let {
+    val level1Tracks = queryLyricsWithParams(trackName = rawTitle, artistName = rawArtist)
+    selectBestSyncedLyrics(level1Tracks, duration, rawTitle, rawArtist)?.let {
       return@runCatching it
     }
-    if (plainFallback == null) {
-      plainFallback =
-        originalSearchTracks.bestMatchingForRelaxed(duration, rawTitle, rawArtist)?.plainLyrics
-    }
+    recordPlainFallback(level1Tracks, rawTitle, rawArtist)
 
-    // Attempt 2: Clean noisy YouTube metadata and take primary artist (/api/get + /api/search?q=...)
-    val cleanTitle = cleanTitleForSearch(rawTitle, rawArtist)
+    // Level 2: Primary artist + junk-cleaned title keeping (Remix) via /api/search?q=$cleanTitle $primaryArtist
+    val cleanTitle = cleanTitleKeepingVersionTags(rawTitle, rawArtist)
     val primaryArtist = extractPrimaryArtist(rawArtist, rawTitle)
 
-    if (cleanTitle != rawTitle || primaryArtist != rawArtist) {
-      val exactCleaned = getTrackExact(cleanTitle, primaryArtist, duration)
-      if (exactCleaned != null) {
-        if (!exactCleaned.syncedLyrics.isNullOrBlank()) {
-          return@runCatching exactCleaned.syncedLyrics
-        }
-        if (plainFallback == null && !exactCleaned.plainLyrics.isNullOrBlank()) {
-          plainFallback = exactCleaned.plainLyrics
-        }
-      }
-    }
-
-    val combinedQuery = listOf(cleanTitle, primaryArtist).filter { it.isNotBlank() }.joinToString(" ")
-    if (combinedQuery.isNotBlank()) {
-      val qTracks =
-        queryLyricsWithParams(query = combinedQuery)
-          .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
-
-      qTracks.bestSyncedMatch(duration, cleanTitle, primaryArtist)?.syncedLyrics?.let {
+    val level2Query = listOf(cleanTitle, primaryArtist).filter { it.isNotBlank() }.joinToString(" ")
+    if (level2Query.isNotBlank()) {
+      val level2Tracks = queryLyricsWithParams(query = level2Query)
+      selectBestSyncedLyrics(level2Tracks, duration, cleanTitle, primaryArtist)?.let {
         return@runCatching it
       }
-      if (plainFallback == null) {
-        plainFallback = qTracks.bestMatchingForRelaxed(duration, cleanTitle, primaryArtist)?.plainLyrics
-      }
+      recordPlainFallback(level2Tracks, cleanTitle, primaryArtist)
     }
 
     if (cleanTitle.isNotBlank() && primaryArtist.isNotBlank()) {
-      val cleanFieldTracks =
-        queryLyricsWithParams(trackName = cleanTitle, artistName = primaryArtist)
-          .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
-
-      cleanFieldTracks.bestSyncedMatch(duration, cleanTitle, primaryArtist)?.syncedLyrics?.let {
+      val level2FieldTracks = queryLyricsWithParams(trackName = cleanTitle, artistName = primaryArtist)
+      selectBestSyncedLyrics(level2FieldTracks, duration, cleanTitle, primaryArtist)?.let {
         return@runCatching it
       }
-      if (plainFallback == null) {
-        plainFallback =
-          cleanFieldTracks.bestMatchingForRelaxed(duration, cleanTitle, primaryArtist)?.plainLyrics
-      }
+      recordPlainFallback(level2FieldTracks, cleanTitle, primaryArtist)
     }
 
-    if (cleanTitle.isNotBlank()) {
-      val titleOnlyTracks =
-        queryLyricsWithParams(query = cleanTitle)
-          .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+    // Level 3: Strip all (...) and [...] for remixes/special versions via /api/search?q=$baseTitle $primaryArtist
+    val baseTitle = cleanTitleForSearch(rawTitle, rawArtist)
+    val level3Query = listOf(baseTitle, primaryArtist).filter { it.isNotBlank() }.joinToString(" ")
+    if (level3Query.isNotBlank() && (baseTitle != cleanTitle || level2Query.isBlank())) {
+      val level3Tracks = queryLyricsWithParams(query = level3Query)
+      selectBestSyncedLyrics(level3Tracks, duration, baseTitle, primaryArtist, allowAnyDurationIfMatched = true)
+        ?.let { return@runCatching it }
+      recordPlainFallback(level3Tracks, baseTitle, primaryArtist)
+    }
 
-      titleOnlyTracks.bestSyncedMatch(duration, cleanTitle, primaryArtist)?.syncedLyrics?.let {
-        return@runCatching it
-      }
-      if (plainFallback == null) {
-        plainFallback =
-          titleOnlyTracks.bestMatchingForRelaxed(duration, cleanTitle, primaryArtist)?.plainLyrics
-      }
+    if (baseTitle.isNotBlank() && level3Query != baseTitle) {
+      val titleOnlyTracks = queryLyricsWithParams(query = baseTitle)
+      selectBestSyncedLyrics(titleOnlyTracks, duration, baseTitle, primaryArtist, allowAnyDurationIfMatched = true)
+        ?.let { return@runCatching it }
+      recordPlainFallback(titleOnlyTracks, baseTitle, primaryArtist)
     }
 
     plainFallback?.takeIf { it.isNotBlank() } ?: throw IllegalStateException("Lyrics unavailable")
+  }
+
+  private fun selectBestSyncedLyrics(
+    tracks: List<Track>,
+    duration: Int,
+    matchTitle: String,
+    matchArtist: String,
+    allowAnyDurationIfMatched: Boolean = false,
+  ): String? {
+    val syncedOnly = tracks.filter { !it.syncedLyrics.isNullOrBlank() }
+    if (syncedOnly.isEmpty()) return null
+
+    syncedOnly.bestSyncedMatch(duration, matchTitle, matchArtist, DURATION_TOLERANCE_SECONDS)
+      ?.syncedLyrics
+      ?.let { return it }
+
+    // Closest duration within ±15s as secondary check when track/artist names vary slightly (e.g. remix)
+    if (duration > 0) {
+      syncedOnly
+        .filter { it.matchesDuration(duration, DURATION_TOLERANCE_SECONDS) }
+        .minByOrNull { abs(it.duration.roundToInt() - duration) }
+        ?.syncedLyrics
+        ?.let { return it }
+    }
+
+    // Level 3 remix fallback: original version may differ slightly in duration from remix edit
+    if (allowAnyDurationIfMatched) {
+      syncedOnly.bestSyncedMatch(-1, matchTitle, matchArtist)?.syncedLyrics?.let { return it }
+      return syncedOnly.firstOrNull { !it.syncedLyrics.isNullOrBlank() }?.syncedLyrics
+    }
+
+    return null
   }
 
   suspend fun getAllLyrics(

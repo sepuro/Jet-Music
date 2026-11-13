@@ -2132,19 +2132,24 @@ object YouTube {
       webBrowseJson?.let(YouTubeLyricsParser::extractPlainDescriptionLyricsFromBrowseJson)
         ?: androidBrowseJson?.let(YouTubeLyricsParser::extractPlainDescriptionLyricsFromBrowseJson)
 
-    // 4. Fallback to non-auto-generated captionTracks (json3/srv3) if browse only had plain text
+    // 4. Fallback to non-auto-generated captionTracks (json3/srv3) or timed transcript -> [mm:ss.xx] LRC
     if (!videoId.isNullOrBlank()) {
       captionLyrics(videoId)
         .onFailure { if (it is CancellationException) throw it }
         .getOrNull()
         ?.let { syncedCaptions -> return@runCatching syncedCaptions }
+
+      fetchTranscriptLrc(videoId)
+        .onFailure { if (it is CancellationException) throw it }
+        .getOrNull()
+        ?.let { syncedTranscript -> return@runCatching syncedTranscript }
     }
 
     plainLyrics
   }.onFailure { if (it is CancellationException) throw it }
 
   suspend fun captionLyrics(videoId: String): Result<String?> = runCatching {
-    val playerClients = listOf(WEB_REMIX, WEB)
+    val playerClients = listOf(WEB_REMIX, ANDROID_MUSIC, WEB)
     var tracks: List<PlayerResponse.Captions.PlayerCaptionsTracklistRenderer.CaptionTrack>? = null
 
     for (client in playerClients) {
@@ -2183,6 +2188,14 @@ object YouTube {
           .getOrNull()
       if (!srv3Body.isNullOrBlank()) {
         YouTubeLyricsParser.parseSrv3ToLrc(srv3Body)?.let { return@runCatching it }
+      }
+
+      val defaultXmlBody =
+        runCatching { innerTube.getTimedText(baseUrl).bodyAsText() }
+          .onFailure { if (it is CancellationException) throw it }
+          .getOrNull()
+      if (!defaultXmlBody.isNullOrBlank()) {
+        YouTubeLyricsParser.parseSrv3ToLrc(defaultXmlBody)?.let { return@runCatching it }
       }
     }
 
@@ -2278,7 +2291,7 @@ object YouTube {
       }
   }
 
-  suspend fun transcript(videoId: String): Result<String> = runCatching {
+  private suspend fun fetchTranscriptLrc(videoId: String): Result<String?> = runCatching {
     val response = innerTube.getTranscript(WEB, videoId).body<GetTranscriptResponse>()
     response.actions
       ?.firstOrNull()
@@ -2292,12 +2305,18 @@ object YouTube {
         val cue =
           group.transcriptCueGroupRenderer.cues.firstOrNull()?.transcriptCueRenderer
             ?: return@mapNotNull null
-        val time = cue.startOffsetMs
-        val text = cue.cue.simpleText.trim('♪').trim(' ')
-        "[%02d:%02d.%03d]$text".format(time / 60000, (time / 1000) % 60, time % 1000)
+        val text = cue.cue.simpleText.trim('♪', ' ')
+        YouTubeLyricsParser.formatLrcLine(cue.startOffsetMs, text)
       }
-      ?.joinToString(separator = "\n")!!
-  }
+      ?.takeIf { it.isNotEmpty() }
+      ?.joinToString(separator = "\n")
+  }.onFailure { if (it is CancellationException) throw it }
+
+  suspend fun transcript(videoId: String): Result<String> = runCatching {
+    fetchTranscriptLrc(videoId).getOrNull()?.takeIf { it.isNotBlank() }
+      ?: captionLyrics(videoId).getOrNull()?.takeIf { it.isNotBlank() }
+      ?: throw IllegalStateException("Transcript unavailable")
+  }.onFailure { if (it is CancellationException) throw it }
 
   suspend fun visitorData(): Result<String> = runCatching {
     Json.parseToJsonElement(innerTube.getSwJsData().bodyAsText().substring(5))

@@ -55,12 +55,21 @@ object KuGou {
     duration: Int,
     album: String? = null
   ): Result<String> = runCatching {
-    val keyword = generateKeyword(title, artist, album)
-    getLyricsCandidate(keyword, duration)?.let { candidate ->
-      Base64.Default.decode(downloadLyrics(candidate.id, candidate.accesskey).content)
-        .decodeToString()
-        .normalize()
-    } ?: throw IllegalStateException("No lyrics candidate")
+    val candidates = getLyricsCandidates(title, artist, album, duration)
+    for (candidate in candidates.take(4)) {
+      val downloaded =
+        runCatching {
+            Base64.Default.decode(downloadLyrics(candidate.id, candidate.accesskey).content)
+              .decodeToString()
+              .normalize()
+          }
+          .onFailure { if (it is CancellationException) throw it }
+          .getOrNull()
+      if (!downloaded.isNullOrBlank()) {
+        return@runCatching downloaded
+      }
+    }
+    throw IllegalStateException("No lyrics candidate")
   }
 
   suspend fun getAllPossibleLyricsOptions(
@@ -89,22 +98,69 @@ object KuGou {
     }
   }
 
+  private suspend fun getLyricsCandidates(
+    title: String,
+    artist: String,
+    album: String?,
+    duration: Int,
+  ): List<SearchLyricsResponse.Candidate> {
+    val results = LinkedHashMap<Long, SearchLyricsResponse.Candidate>()
+    val cleanArtist = normalizeArtist(artist)
+    val primaryArtist =
+      cleanArtist
+        .split(Regex("""\s*(?:、|,|/|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b)\s*""", RegexOption.IGNORE_CASE))
+        .firstOrNull()
+        ?.trim()
+        .orEmpty()
+        .ifBlank { cleanArtist }
+
+    val versionedTitle = normalizeTitleKeepingVersion(title)
+    val baseTitle = normalizeTitle(title)
+
+    val queries =
+      buildList {
+        add(Keyword(versionedTitle, cleanArtist, album))
+        if (primaryArtist != cleanArtist || album != null) {
+          add(Keyword(versionedTitle, primaryArtist, null))
+        }
+        if (baseTitle != versionedTitle) {
+          add(Keyword(baseTitle, cleanArtist, null))
+          if (primaryArtist != cleanArtist) {
+            add(Keyword(baseTitle, primaryArtist, null))
+          }
+        }
+      }.distinct()
+
+    for (kw in queries) {
+      findCandidatesForKeyword(kw, duration).forEach { results.putIfAbsent(it.id, it) }
+      if (results.isNotEmpty()) break
+    }
+    return results.values.toList()
+  }
+
   suspend fun getLyricsCandidate(keyword: Keyword, duration: Int): SearchLyricsResponse.Candidate? {
-    findCandidateForKeyword(keyword, duration)?.let { return it }
+    findCandidatesForKeyword(keyword, duration).firstOrNull()?.let { return it }
 
     // Fallback with primary artist only when multi-artist keyword fails
-    val primaryArtist = keyword.artist.split("、", ",", "/").firstOrNull()?.trim().orEmpty()
+    val primaryArtist =
+      keyword.artist
+        .split(Regex("""\s*(?:、|,|/|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b)\s*""", RegexOption.IGNORE_CASE))
+        .firstOrNull()
+        ?.trim()
+        .orEmpty()
     if (primaryArtist.isNotBlank() && primaryArtist != keyword.artist) {
-      return findCandidateForKeyword(keyword.copy(artist = primaryArtist, album = null), duration)
+      return findCandidatesForKeyword(keyword.copy(artist = primaryArtist, album = null), duration)
+        .firstOrNull()
     }
 
     return null
   }
 
-  private suspend fun findCandidateForKeyword(
+  private suspend fun findCandidatesForKeyword(
     keyword: Keyword,
     duration: Int,
-  ): SearchLyricsResponse.Candidate? {
+  ): List<SearchLyricsResponse.Candidate> {
+    val collected = mutableListOf<SearchLyricsResponse.Candidate>()
     runCatching { searchSongs(keyword) }
       .onFailure { if (it is CancellationException) throw it }
       .getOrNull()
@@ -114,20 +170,19 @@ object KuGou {
         if (
           duration <= 0 || abs(song.duration - duration) <= DURATION_TOLERANCE
         ) { // if duration <= 0, we don't care duration
-          val candidate =
-            runCatching { searchLyricsByHash(song.hash) }
-              .onFailure { if (it is CancellationException) throw it }
-              .getOrNull()
-              ?.candidates
-              ?.firstOrNull()
-          if (candidate != null) return candidate
+          runCatching { searchLyricsByHash(song.hash) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
+            ?.candidates
+            ?.let(collected::addAll)
         }
       }
-    return runCatching { searchLyricsByKeyword(keyword, duration) }
+    runCatching { searchLyricsByKeyword(keyword, duration) }
       .onFailure { if (it is CancellationException) throw it }
       .getOrNull()
       ?.candidates
-      ?.firstOrNull()
+      ?.let(collected::addAll)
+    return collected.distinctBy { it.id }
   }
 
   suspend fun searchSongs(keyword: Keyword) =
@@ -195,6 +250,17 @@ object KuGou {
       }
       .body<DownloadLyricsResponse>()
 
+  private fun normalizeTitleKeepingVersion(title: String) =
+    title
+      .replace(
+        """(?i)\s*\((?:[^()]*\b(?:official\s*(?:music\s*)?video|official\s*audio|video\s*oficial|official|video|audio|lyrics?|visualizer|hd|4k|1080p|720p|letra)\b[^()]*)\)""".toRegex(),
+        "",
+      )
+      .replace("\\[.*?\\]".toRegex(), "")
+      .replace("(?i)\\s*\\b(?:feat\\.?|ft\\.?|featuring)\\b.*$".toRegex(), "")
+      .replace("\\s+".toRegex(), " ")
+      .trim()
+
   private fun normalizeTitle(title: String) =
     title
       .replace("\\(.*?\\)".toRegex(), "")
@@ -257,5 +323,5 @@ object KuGou {
   private val ACCEPTED_REGEX = "\\[(\\d\\d):(\\d\\d)\\.(\\d{2,3})\\].*".toRegex()
   private val BANNED_REGEX = ".+].+[:：].+".toRegex()
 
-  private const val DURATION_TOLERANCE = 8
+  private const val DURATION_TOLERANCE = 15
 }

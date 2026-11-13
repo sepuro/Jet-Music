@@ -15,5 +15,8 @@ data class LyricsEntity(
 ) {
   companion object {
     const val LYRICS_NOT_FOUND = "LYRICS_NOT_FOUND"
+    private val LRC_TIMESTAMP_REGEX = Regex("""\[\d{1,2}:\d{2}""")
+
+    fun hasSyncedLrcTimestamps(lyrics: String): Boolean = LRC_TIMESTAMP_REGEX.containsMatchIn(lyrics)
   }
 }

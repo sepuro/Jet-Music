@@ -129,6 +129,17 @@ class YouTubeLyricsParserTest {
       """.trimIndent()
 
     assertEquals("[00:05.12]Hello world\n[00:10.50]Line & two", YouTubeLyricsParser.parseSrv3ToLrc(srv3))
+
+    val timedTextXml =
+      """
+      <?xml version="1.0" encoding="utf-8" ?>
+      <transcript>
+        <text start="5.12" dur="2.0">Hello world</text>
+        <text start="10.5" dur="3.0">Line &amp; two</text>
+      </transcript>
+      """.trimIndent()
+
+    assertEquals("[00:05.12]Hello world\n[00:10.50]Line & two", YouTubeLyricsParser.parseSrv3ToLrc(timedTextXml))
     assertNull(YouTubeLyricsParser.parseJson3ToLrc("not json"))
   }
 }
