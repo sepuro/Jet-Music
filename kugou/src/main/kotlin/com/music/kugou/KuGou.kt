@@ -17,6 +17,7 @@ import java.lang.Integer.min
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.math.abs
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 
@@ -89,15 +90,44 @@ object KuGou {
   }
 
   suspend fun getLyricsCandidate(keyword: Keyword, duration: Int): SearchLyricsResponse.Candidate? {
-    searchSongs(keyword).data.info.forEach { song ->
-      if (
-        duration == -1 || abs(song.duration - duration) <= DURATION_TOLERANCE
-      ) { // if duration == -1, we don't care duration
-        val candidate = searchLyricsByHash(song.hash).candidates.firstOrNull()
-        if (candidate != null) return candidate
-      }
+    findCandidateForKeyword(keyword, duration)?.let { return it }
+
+    // Fallback with primary artist only when multi-artist keyword fails
+    val primaryArtist = keyword.artist.split("、", ",", "/").firstOrNull()?.trim().orEmpty()
+    if (primaryArtist.isNotBlank() && primaryArtist != keyword.artist) {
+      return findCandidateForKeyword(keyword.copy(artist = primaryArtist, album = null), duration)
     }
-    return searchLyricsByKeyword(keyword, duration).candidates.firstOrNull()
+
+    return null
+  }
+
+  private suspend fun findCandidateForKeyword(
+    keyword: Keyword,
+    duration: Int,
+  ): SearchLyricsResponse.Candidate? {
+    runCatching { searchSongs(keyword) }
+      .onFailure { if (it is CancellationException) throw it }
+      .getOrNull()
+      ?.data
+      ?.info
+      ?.forEach { song ->
+        if (
+          duration <= 0 || abs(song.duration - duration) <= DURATION_TOLERANCE
+        ) { // if duration <= 0, we don't care duration
+          val candidate =
+            runCatching { searchLyricsByHash(song.hash) }
+              .onFailure { if (it is CancellationException) throw it }
+              .getOrNull()
+              ?.candidates
+              ?.firstOrNull()
+          if (candidate != null) return candidate
+        }
+      }
+    return runCatching { searchLyricsByKeyword(keyword, duration) }
+      .onFailure { if (it is CancellationException) throw it }
+      .getOrNull()
+      ?.candidates
+      ?.firstOrNull()
   }
 
   suspend fun searchSongs(keyword: Keyword) =
@@ -167,23 +197,32 @@ object KuGou {
 
   private fun normalizeTitle(title: String) =
     title
-      .replace("\\(.*\\)".toRegex(), "")
-      .replace("（.*）".toRegex(), "")
-      .replace("「.*」".toRegex(), "")
-      .replace("『.*』".toRegex(), "")
-      .replace("<.*>".toRegex(), "")
-      .replace("《.*》".toRegex(), "")
-      .replace("〈.*〉".toRegex(), "")
-      .replace("＜.*＞".toRegex(), "")
+      .replace("\\(.*?\\)".toRegex(), "")
+      .replace("\\[.*?\\]".toRegex(), "")
+      .replace("（.*?）".toRegex(), "")
+      .replace("「.*?」".toRegex(), "")
+      .replace("『.*?』".toRegex(), "")
+      .replace("【.*?】".toRegex(), "")
+      .replace("<.*?>".toRegex(), "")
+      .replace("《.*?》".toRegex(), "")
+      .replace("〈.*?〉".toRegex(), "")
+      .replace("＜.*?＞".toRegex(), "")
+      .replace("(?i)\\s*\\b(?:feat\\.?|ft\\.?|featuring)\\b.*$".toRegex(), "")
+      .replace("\\s+".toRegex(), " ")
+      .trim()
 
   private fun normalizeArtist(artist: String) =
     artist
+      .replace("(?i)\\s*-\\s*Topic$".toRegex(), "")
+      .replace("(?i)VEVO$".toRegex(), "")
       .replace(", ", "、")
+      .replace(",", "、")
       .replace(" & ", "、")
       .replace(".", "")
       .replace("和", "、")
-      .replace("\\(.*\\)".toRegex(), "")
-      .replace("（.*）".toRegex(), "")
+      .replace("\\(.*?\\)".toRegex(), "")
+      .replace("（.*?）".toRegex(), "")
+      .trim()
 
   fun generateKeyword(title: String, artist: String, album: String? = null) =
     Keyword(normalizeTitle(title), normalizeArtist(artist), album)

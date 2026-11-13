@@ -9,8 +9,8 @@ import kotlinx.coroutines.withContext
 
 @Suppress("RegExpRedundantEscape")
 object LyricsUtils {
-  val LINE_REGEX = "((\\[\\d\\d:\\d\\d\\.\\d{2,3}\\] ?)+)(.+)".toRegex()
-  val TIME_REGEX = "\\[(\\d\\d):(\\d\\d)\\.(\\d{2,3})\\]".toRegex()
+  val LINE_REGEX = "((\\[\\d{1,3}:\\d\\d[.:]\\d{2,3}\\] ?)+)(.+)".toRegex()
+  val TIME_REGEX = "\\[(\\d{1,3}):(\\d\\d)[.:](\\d{2,3})\\]".toRegex()
 
   private val RICH_SYNC_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](.+)".toRegex()
   private val RICH_SYNC_WORD_REGEX = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>\\s*([^<]+)".toRegex()

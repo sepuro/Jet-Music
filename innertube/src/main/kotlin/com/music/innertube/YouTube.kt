@@ -23,9 +23,11 @@ import com.music.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfi
 import com.music.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.music.innertube.models.YTItem
 import com.music.innertube.models.YouTubeClient
+import com.music.innertube.models.YouTubeClient.Companion.ANDROID_MUSIC
 import com.music.innertube.models.YouTubeClient.Companion.WEB
 import com.music.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.music.innertube.models.YouTubeLocale
+import com.music.innertube.utils.YouTubeLyricsParser
 import com.music.innertube.models.comment.CommentResponse
 import com.music.innertube.models.comment.CommentThreadRenderer
 import com.music.innertube.models.extractCountText
@@ -73,6 +75,7 @@ import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import java.net.Proxy
 import kotlin.random.Random
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
@@ -2095,18 +2098,96 @@ object YouTube {
     )
   }
 
-  suspend fun lyrics(endpoint: BrowseEndpoint): Result<String?> = runCatching {
-    val response =
-      innerTube.browse(WEB_REMIX, endpoint.browseId, endpoint.params).body<BrowseResponse>()
-    response.contents
-      ?.sectionListRenderer
-      ?.contents
-      ?.firstOrNull { it.musicDescriptionShelfRenderer != null }
-      ?.musicDescriptionShelfRenderer
-      ?.description
-      ?.runs
-      ?.joinToString(separator = "") { it.text }
-  }
+  suspend fun lyrics(endpoint: BrowseEndpoint, videoId: String? = null): Result<String?> = runCatching {
+    val webBrowseJson =
+      runCatching {
+          Json.parseToJsonElement(
+            innerTube.browse(WEB_REMIX, endpoint.browseId, endpoint.params).bodyAsText()
+          )
+        }
+        .onFailure { if (it is CancellationException) throw it }
+        .getOrNull()
+
+    // 1. Prefer timedLyricsModel.lyricsData.timedLyricsData from WEB_REMIX browse response
+    webBrowseJson?.let(YouTubeLyricsParser::extractTimedLyricsFromBrowseJson)?.let {
+      return@runCatching it
+    }
+
+    // 2. Try ANDROID_MUSIC browse response for timedLyricsData (mobile YTM synced lyrics)
+    val androidBrowseJson =
+      runCatching {
+          Json.parseToJsonElement(
+            innerTube.browse(ANDROID_MUSIC, endpoint.browseId, endpoint.params).bodyAsText()
+          )
+        }
+        .onFailure { if (it is CancellationException) throw it }
+        .getOrNull()
+
+    androidBrowseJson?.let(YouTubeLyricsParser::extractTimedLyricsFromBrowseJson)?.let {
+      return@runCatching it
+    }
+
+    // 3. Extract plain-text fallback from musicDescriptionShelfRenderer before trying captions
+    val plainLyrics =
+      webBrowseJson?.let(YouTubeLyricsParser::extractPlainDescriptionLyricsFromBrowseJson)
+        ?: androidBrowseJson?.let(YouTubeLyricsParser::extractPlainDescriptionLyricsFromBrowseJson)
+
+    // 4. Fallback to non-auto-generated captionTracks (json3/srv3) if browse only had plain text
+    if (!videoId.isNullOrBlank()) {
+      captionLyrics(videoId)
+        .onFailure { if (it is CancellationException) throw it }
+        .getOrNull()
+        ?.let { syncedCaptions -> return@runCatching syncedCaptions }
+    }
+
+    plainLyrics
+  }.onFailure { if (it is CancellationException) throw it }
+
+  suspend fun captionLyrics(videoId: String): Result<String?> = runCatching {
+    val playerClients = listOf(WEB_REMIX, WEB)
+    var tracks: List<PlayerResponse.Captions.PlayerCaptionsTracklistRenderer.CaptionTrack>? = null
+
+    for (client in playerClients) {
+      val response =
+        player(videoId = videoId, client = client)
+          .onFailure { if (it is CancellationException) throw it }
+          .getOrNull()
+      val candidateTracks = response?.captions?.playerCaptionsTracklistRenderer?.captionTracks
+      if (!candidateTracks.isNullOrEmpty()) {
+        tracks = candidateTracks
+        break
+      }
+    }
+
+    val manualTracks =
+      YouTubeLyricsParser.selectManualCaptionTracks(tracks, preferredLanguage = locale.hl)
+
+    for (track in manualTracks.take(2)) {
+      val baseUrl = track.baseUrl ?: continue
+
+      val json3Body =
+        runCatching {
+            innerTube.getTimedText(YouTubeLyricsParser.withTimedTextFormat(baseUrl, "json3")).bodyAsText()
+          }
+          .onFailure { if (it is CancellationException) throw it }
+          .getOrNull()
+      if (!json3Body.isNullOrBlank()) {
+        YouTubeLyricsParser.parseJson3ToLrc(json3Body)?.let { return@runCatching it }
+      }
+
+      val srv3Body =
+        runCatching {
+            innerTube.getTimedText(YouTubeLyricsParser.withTimedTextFormat(baseUrl, "srv3")).bodyAsText()
+          }
+          .onFailure { if (it is CancellationException) throw it }
+          .getOrNull()
+      if (!srv3Body.isNullOrBlank()) {
+        YouTubeLyricsParser.parseSrv3ToLrc(srv3Body)?.let { return@runCatching it }
+      }
+    }
+
+    null
+  }.onFailure { if (it is CancellationException) throw it }
 
   suspend fun related(endpoint: BrowseEndpoint): Result<RelatedPage> = runCatching {
     val response = innerTube.browse(WEB_REMIX, endpoint.browseId).body<BrowseResponse>()

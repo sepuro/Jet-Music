@@ -16,11 +16,14 @@ object YouTubeLyricsProvider : LyricsProvider {
     duration: Int,
     album: String?,
   ): Result<String> = runCatching {
-    val nextResult = YouTube.next(WatchEndpoint(videoId = id)).getOrThrow()
-    YouTube.lyrics(
-        endpoint =
-          nextResult.lyricsEndpoint ?: throw IllegalStateException("Lyrics endpoint not found"),
-      )
-      .getOrThrow() ?: throw IllegalStateException("Lyrics unavailable")
+    val nextResult = YouTube.next(WatchEndpoint(videoId = id)).getOrNull()
+    val lyricsEndpoint = nextResult?.lyricsEndpoint
+    val lyrics =
+      if (lyricsEndpoint != null) {
+        YouTube.lyrics(endpoint = lyricsEndpoint, videoId = id).getOrNull()
+      } else {
+        YouTube.captionLyrics(id).getOrNull()
+      }
+    lyrics?.takeIf { it.isNotBlank() } ?: throw IllegalStateException("Lyrics unavailable")
   }
 }

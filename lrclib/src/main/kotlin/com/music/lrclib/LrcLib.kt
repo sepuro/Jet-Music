@@ -1,8 +1,10 @@
 package com.music.lrclib
 
+import com.music.echo.metadata.cleaner.MetadataCleaner
 import com.music.lrclib.models.Track
-import com.music.lrclib.models.bestMatchingFor
 import com.music.lrclib.models.bestMatchingForRelaxed
+import com.music.lrclib.models.bestSyncedMatch
+import com.music.lrclib.models.matchesDuration
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -12,11 +14,28 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.serialization.kotlinx.json.json
 import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.Json
 
 object LrcLib {
+  private const val DURATION_TOLERANCE_SECONDS = 8
+
+  private val NOISY_PARENS_REGEX =
+    Regex(
+      """\s*\((?:[^()]*\b(?:official|video|audio|lyrics?|lyric|visualizer|hd|4k|1080p|720p|remix|live|acoustic|explicit|clean|remaster(?:ed)?|deluxe|radio\s+edit|extended|slowed|sped\s+up|nightcore|version|letra|en\s+vivo)\b[^()]*)\)""",
+      RegexOption.IGNORE_CASE,
+    )
+  private val SQUARE_BRACKETS_REGEX = Regex("""\s*\[.*?\]""")
+  private val CJK_BRACKETS_REGEX = Regex("""\s*(?:【.*?】|「.*?」)""")
+  private val FEAT_SUFFIX_REGEX =
+    Regex("""\s*(?:\(|\[)?\b(?:feat\.?|ft\.?|featuring)\b.*$""", RegexOption.IGNORE_CASE)
+  private val ARTIST_SPLIT_REGEX =
+    Regex("""\s*(?:,|/|•|;|&|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b|\band\b|\bx\b)\s*""", RegexOption.IGNORE_CASE)
+  private val MULTI_SPACE_REGEX = Regex("""\s+""")
+
   private val client by lazy {
     HttpClient(CIO) {
       install(ContentNegotiation) {
@@ -34,12 +53,48 @@ object LrcLib {
     }
   }
 
-  private fun cleanTitle(title: String, artist: String = ""): String {
-    return com.music.echo.metadata.cleaner.MetadataCleaner.clean(title, artist).toSearchQuery().first
+  internal fun cleanTitleForSearch(title: String, artist: String = ""): String {
+    val metadataCleaned = MetadataCleaner.clean(title, artist).toSearchQuery().first
+    val stripped =
+      metadataCleaned
+        .replace(NOISY_PARENS_REGEX, " ")
+        .replace(SQUARE_BRACKETS_REGEX, " ")
+        .replace(CJK_BRACKETS_REGEX, " ")
+        .replace(FEAT_SUFFIX_REGEX, "")
+        .replace(MULTI_SPACE_REGEX, " ")
+        .trim()
+        .trimEnd('-', '–', '—', '|', '/')
+        .trim()
+    return stripped.ifBlank { metadataCleaned.ifBlank { title.trim() } }
   }
 
-  private fun cleanArtist(artist: String, title: String = ""): String {
-    return com.music.echo.metadata.cleaner.MetadataCleaner.clean(title, artist).toSearchQuery().second
+  internal fun extractPrimaryArtist(artist: String, title: String = ""): String {
+    val cleaned = MetadataCleaner.clean(title, artist)
+    val baseArtist = cleaned.primaryArtist.ifBlank { cleaned.cleanArtist }.ifBlank { artist.trim() }
+    val splitPrimary = baseArtist.split(ARTIST_SPLIT_REGEX).firstOrNull()?.trim().orEmpty()
+    return splitPrimary.ifBlank { baseArtist }
+  }
+
+  private suspend fun getTrackExact(
+    trackName: String,
+    artistName: String,
+    duration: Int,
+    albumName: String? = null,
+  ): Track? {
+    if (trackName.isBlank() || artistName.isBlank()) return null
+    return runCatching {
+        client
+          .get("/api/get") {
+            parameter("track_name", trackName)
+            parameter("artist_name", artistName)
+            if (!albumName.isNullOrBlank()) parameter("album_name", albumName)
+            if (duration > 0) parameter("duration", duration)
+          }
+          .body<Track>()
+      }
+      .onFailure { if (it is CancellationException) throw it }
+      .getOrNull()
+      ?.takeIf { it.matchesDuration(duration, DURATION_TOLERANCE_SECONDS) }
   }
 
   private suspend fun queryLyricsWithParams(
@@ -58,6 +113,7 @@ object LrcLib {
           }
           .body<List<Track>>()
       }
+      .onFailure { if (it is CancellationException) throw it }
       .getOrDefault(emptyList())
 
   private suspend fun queryLyrics(
@@ -65,59 +121,51 @@ object LrcLib {
     title: String,
     album: String? = null,
   ): List<Track> {
-    val cleaned = com.music.echo.metadata.cleaner.MetadataCleaner.clean(title, artist)
-    val (cleanedTitle, cleanedArtist) = cleaned.toSearchQuery()
-    val primaryArtist = cleaned.primaryArtist
+    val rawTitle = title.trim()
+    val rawArtist = artist.trim()
+    val cleanTitle = cleanTitleForSearch(rawTitle, rawArtist)
+    val primaryArtist = extractPrimaryArtist(rawArtist, rawTitle)
 
-    // Strategy 1: Search with cleaned title and primary artist
-    var results =
-      queryLyricsWithParams(trackName = cleanedTitle, artistName = primaryArtist, albumName = album)
-        .filter { it.syncedLyrics != null || it.plainLyrics != null }
+    val collected = LinkedHashMap<Int, Track>()
 
-    if (results.isNotEmpty()) return results
+    // Attempt 1: Original title and artist via /api/search
+    queryLyricsWithParams(trackName = rawTitle, artistName = rawArtist)
+      .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+      .forEach { collected[it.id] = it }
 
-    // Strategy 1b: Fallback to full cleaned artist if different from primary artist
-    if (primaryArtist != cleanedArtist) {
-      results =
-        queryLyricsWithParams(trackName = cleanedTitle, artistName = cleanedArtist, albumName = album)
-          .filter { it.syncedLyrics != null || it.plainLyrics != null }
-
-      if (results.isNotEmpty()) return results
+    if (collected.values.any { !it.syncedLyrics.isNullOrBlank() }) {
+      return collected.values.toList()
     }
 
-    // Strategy 2: Search with cleaned title only (artist might be different)
-    results =
-      queryLyricsWithParams(trackName = cleanedTitle).filter {
-        it.syncedLyrics != null || it.plainLyrics != null
-      }
-
-    if (results.isNotEmpty()) return results
-
-    // Strategy 3: Use q parameter with combined search
-    results =
-      queryLyricsWithParams(query = "$cleanedArtist $cleanedTitle").filter {
-        it.syncedLyrics != null || it.plainLyrics != null
-      }
-
-    if (results.isNotEmpty()) return results
-
-    // Strategy 4: Use q parameter with just title
-    results =
-      queryLyricsWithParams(query = cleanedTitle).filter {
-        it.syncedLyrics != null || it.plainLyrics != null
-      }
-
-    if (results.isNotEmpty()) return results
-
-    // Strategy 5: Try original title if different from cleaned
-    if (cleanedTitle != title.trim()) {
-      results =
-        queryLyricsWithParams(trackName = title.trim(), artistName = artist.trim()).filter {
-          it.syncedLyrics != null || it.plainLyrics != null
-        }
+    // Attempt 2: Cleaned title + primary artist via /api/search?q=$cleanTitle $primaryArtist
+    val combinedQuery = listOf(cleanTitle, primaryArtist).filter { it.isNotBlank() }.joinToString(" ")
+    if (combinedQuery.isNotBlank()) {
+      queryLyricsWithParams(query = combinedQuery)
+        .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+        .forEach { collected.putIfAbsent(it.id, it) }
     }
 
-    return results
+    if (collected.values.none { !it.syncedLyrics.isNullOrBlank() } && cleanTitle.isNotBlank()) {
+      if (primaryArtist.isNotBlank()) {
+        queryLyricsWithParams(trackName = cleanTitle, artistName = primaryArtist)
+          .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+          .forEach { collected.putIfAbsent(it.id, it) }
+      }
+
+      if (collected.values.none { !it.syncedLyrics.isNullOrBlank() }) {
+        queryLyricsWithParams(query = cleanTitle)
+          .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+          .forEach { collected.putIfAbsent(it.id, it) }
+      }
+    }
+
+    if (collected.isEmpty() && !album.isNullOrBlank()) {
+      queryLyricsWithParams(trackName = cleanTitle, artistName = primaryArtist, albumName = album)
+        .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+        .forEach { collected.putIfAbsent(it.id, it) }
+    }
+
+    return collected.values.toList()
   }
 
   suspend fun getLyrics(
@@ -126,31 +174,92 @@ object LrcLib {
     duration: Int,
     album: String? = null,
   ) = runCatching {
-    val (cleanedTitle, cleanedArtist) = com.music.echo.metadata.cleaner.MetadataCleaner.clean(title, artist).toSearchQuery()
-    val tracks = queryLyrics(artist, title, album)
+    val rawTitle = title.trim()
+    val rawArtist = artist.trim()
+    var plainFallback: String? = null
 
-    val res =
-      when {
-        duration == -1 -> {
-          tracks
-            .bestMatchingFor(duration, cleanedTitle, cleanedArtist)
-            ?.let { track -> track.syncedLyrics ?: track.plainLyrics }
-            ?.let(LrcLib::Lyrics)
+    // Attempt 1: Original title and artist (/api/get and /api/search with ±8s tolerance)
+    val exactOriginal = getTrackExact(rawTitle, rawArtist, duration)
+    if (exactOriginal != null) {
+      if (!exactOriginal.syncedLyrics.isNullOrBlank()) {
+        return@runCatching exactOriginal.syncedLyrics
+      }
+      if (plainFallback == null && !exactOriginal.plainLyrics.isNullOrBlank()) {
+        plainFallback = exactOriginal.plainLyrics
+      }
+    }
+
+    val originalSearchTracks =
+      queryLyricsWithParams(trackName = rawTitle, artistName = rawArtist)
+        .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+
+    originalSearchTracks.bestSyncedMatch(duration, rawTitle, rawArtist)?.syncedLyrics?.let {
+      return@runCatching it
+    }
+    if (plainFallback == null) {
+      plainFallback =
+        originalSearchTracks.bestMatchingForRelaxed(duration, rawTitle, rawArtist)?.plainLyrics
+    }
+
+    // Attempt 2: Clean noisy YouTube metadata and take primary artist (/api/get + /api/search?q=...)
+    val cleanTitle = cleanTitleForSearch(rawTitle, rawArtist)
+    val primaryArtist = extractPrimaryArtist(rawArtist, rawTitle)
+
+    if (cleanTitle != rawTitle || primaryArtist != rawArtist) {
+      val exactCleaned = getTrackExact(cleanTitle, primaryArtist, duration)
+      if (exactCleaned != null) {
+        if (!exactCleaned.syncedLyrics.isNullOrBlank()) {
+          return@runCatching exactCleaned.syncedLyrics
         }
-        else -> {
-          // Try with relaxed duration matching (±5 seconds instead of ±2)
-          tracks
-            .bestMatchingForRelaxed(duration)
-            ?.let { track -> track.syncedLyrics ?: track.plainLyrics }
-            ?.let(LrcLib::Lyrics)
+        if (plainFallback == null && !exactCleaned.plainLyrics.isNullOrBlank()) {
+          plainFallback = exactCleaned.plainLyrics
         }
       }
-
-    if (res != null) {
-      return@runCatching res.text
-    } else {
-      throw IllegalStateException("Lyrics unavailable")
     }
+
+    val combinedQuery = listOf(cleanTitle, primaryArtist).filter { it.isNotBlank() }.joinToString(" ")
+    if (combinedQuery.isNotBlank()) {
+      val qTracks =
+        queryLyricsWithParams(query = combinedQuery)
+          .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+
+      qTracks.bestSyncedMatch(duration, cleanTitle, primaryArtist)?.syncedLyrics?.let {
+        return@runCatching it
+      }
+      if (plainFallback == null) {
+        plainFallback = qTracks.bestMatchingForRelaxed(duration, cleanTitle, primaryArtist)?.plainLyrics
+      }
+    }
+
+    if (cleanTitle.isNotBlank() && primaryArtist.isNotBlank()) {
+      val cleanFieldTracks =
+        queryLyricsWithParams(trackName = cleanTitle, artistName = primaryArtist)
+          .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+
+      cleanFieldTracks.bestSyncedMatch(duration, cleanTitle, primaryArtist)?.syncedLyrics?.let {
+        return@runCatching it
+      }
+      if (plainFallback == null) {
+        plainFallback =
+          cleanFieldTracks.bestMatchingForRelaxed(duration, cleanTitle, primaryArtist)?.plainLyrics
+      }
+    }
+
+    if (cleanTitle.isNotBlank()) {
+      val titleOnlyTracks =
+        queryLyricsWithParams(query = cleanTitle)
+          .filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+
+      titleOnlyTracks.bestSyncedMatch(duration, cleanTitle, primaryArtist)?.syncedLyrics?.let {
+        return@runCatching it
+      }
+      if (plainFallback == null) {
+        plainFallback =
+          titleOnlyTracks.bestMatchingForRelaxed(duration, cleanTitle, primaryArtist)?.plainLyrics
+      }
+    }
+
+    plainFallback?.takeIf { it.isNotBlank() } ?: throw IllegalStateException("Lyrics unavailable")
   }
 
   suspend fun getAllLyrics(
@@ -160,45 +269,51 @@ object LrcLib {
     album: String? = null,
     callback: (String) -> Unit,
   ) {
-    val (cleanedTitle, cleanedArtist) = com.music.echo.metadata.cleaner.MetadataCleaner.clean(title, artist).toSearchQuery()
+    val cleanTitle = cleanTitleForSearch(title, artist)
+    val primaryArtist = extractPrimaryArtist(artist, title)
     val tracks = queryLyrics(artist, title, album)
     var count = 0
     var plain = 0
 
     val sortedTracks =
       when {
-        duration == -1 -> {
+        duration <= 0 -> {
           tracks.sortedByDescending { track ->
             var score = 0.0
 
-            if (track.syncedLyrics != null) score += 1.0
+            if (!track.syncedLyrics.isNullOrBlank()) score += 1.0
 
-            val titleSimilarity = calculateStringSimilarity(cleanedTitle, track.trackName)
-            val artistSimilarity = calculateStringSimilarity(cleanedArtist, track.artistName)
+            val titleSimilarity = calculateStringSimilarity(cleanTitle, track.trackName)
+            val artistSimilarity = calculateStringSimilarity(primaryArtist, track.artistName)
             score += (titleSimilarity + artistSimilarity) / 2.0
 
             score
           }
         }
         else -> {
-          tracks.sortedBy { abs(it.duration.toInt() - duration) }
+          tracks.sortedWith(
+            compareByDescending<Track> { !it.syncedLyrics.isNullOrBlank() }
+              .thenBy { abs(it.duration.roundToInt() - duration) }
+          )
         }
       }
 
     sortedTracks.forEach { track ->
       currentCoroutineContext().ensureActive()
       if (count <= 4) {
-        if (track.syncedLyrics != null && duration == -1) {
+        if (!track.syncedLyrics.isNullOrBlank() && duration <= 0) {
           count++
           track.syncedLyrics.let(callback)
         } else {
-          // Relaxed duration matching (±5 seconds)
-          if (track.syncedLyrics != null && abs(track.duration.toInt() - duration) <= 5) {
+          // Relaxed duration matching (±8 seconds)
+          if (!track.syncedLyrics.isNullOrBlank() && track.matchesDuration(duration, DURATION_TOLERANCE_SECONDS)) {
             count++
             track.syncedLyrics.let(callback)
           }
           if (
-            track.plainLyrics != null && abs(track.duration.toInt() - duration) <= 5 && plain == 0
+            !track.plainLyrics.isNullOrBlank() &&
+              track.matchesDuration(duration, DURATION_TOLERANCE_SECONDS) &&
+              plain == 0
           ) {
             count++
             plain++

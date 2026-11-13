@@ -68,6 +68,20 @@ data class YouTubeClient(
         useWebPoTokens = true,
       )
 
+    val ANDROID_MUSIC =
+      YouTubeClient(
+        clientName = "ANDROID_MUSIC",
+        clientVersion = "7.16.53",
+        clientId = "21",
+        userAgent =
+          "com.google.android.apps.youtube.music/7.16.53 (Linux; U; Android 14; en_US; Pixel 8; Build/UQ1A.240205.004) gzip",
+        osName = "Android",
+        osVersion = "14",
+        androidSdkVersion = "34",
+        loginSupported = false,
+        useSignatureTimestamp = false,
+      )
+
     /**
      * The only client that answers `OK` for age-restricted / explicit tracks, because it is the
      * only authenticated one left in the stream chain. Everything else is refused with "sign in to

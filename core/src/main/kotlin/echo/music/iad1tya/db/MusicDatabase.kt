@@ -206,11 +206,43 @@ abstract class InternalDatabase : RoomDatabase() {
                   } catch (e: Exception) {
                     Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
                   }
+                  purgeStaticLyricsCacheOnce(context, db)
                 }
               }
             )
             .build(),
       )
+
+    private const val LYRICS_CACHE_PREFS = "lyrics_cache_maintenance"
+    private const val KEY_PURGED_STATIC_LYRICS = "purged_static_lyrics_v1"
+
+    private fun purgeStaticLyricsCacheOnce(context: Context, db: SupportSQLiteDatabase) {
+      try {
+        val prefs = context.getSharedPreferences(LYRICS_CACHE_PREFS, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_PURGED_STATIC_LYRICS, false)) return
+
+        db.beginTransaction()
+        try {
+          db.execSQL(
+            """
+            DELETE FROM lyrics
+            WHERE lyrics = '${LyricsEntity.LYRICS_NOT_FOUND}'
+               OR trim(lyrics) = ''
+               OR (
+                 lyrics NOT GLOB '*[[][0-9][0-9]:[0-9][0-9][.:][0-9][0-9]*'
+                 AND lyrics NOT GLOB '*[[][0-9]:[0-9][0-9][.:][0-9][0-9]*'
+               )
+            """.trimIndent()
+          )
+          db.setTransactionSuccessful()
+        } finally {
+          db.endTransaction()
+        }
+        prefs.edit().putBoolean(KEY_PURGED_STATIC_LYRICS, true).apply()
+      } catch (e: Exception) {
+        Timber.tag("MusicDatabase").e(e, "Failed to purge static lyrics cache")
+      }
+    }
   }
 }
 

@@ -1,7 +1,10 @@
 package com.music.lrclib.models
 
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlinx.serialization.Serializable
+
+private const val DURATION_TOLERANCE_SECONDS = 8
 
 @Serializable
 data class Track(
@@ -13,36 +16,67 @@ data class Track(
   val syncedLyrics: String?,
 )
 
+internal fun Track.matchesDuration(duration: Int, toleranceSeconds: Int = DURATION_TOLERANCE_SECONDS): Boolean {
+  if (duration <= 0) return true
+  return abs(this.duration.roundToInt() - duration) <= toleranceSeconds
+}
+
 internal fun List<Track>.bestMatchingFor(duration: Int): Track? {
   if (isEmpty()) return null
 
-  if (duration == -1) {
-    return firstOrNull { it.syncedLyrics != null } ?: firstOrNull()
+  if (duration <= 0) {
+    return firstOrNull { !it.syncedLyrics.isNullOrBlank() } ?: firstOrNull()
   }
 
-  return minByOrNull { abs(it.duration.toInt() - duration) }
-    ?.takeIf { abs(it.duration.toInt() - duration) <= 2 }
+  return minByOrNull { abs(it.duration.roundToInt() - duration) }
+    ?.takeIf { abs(it.duration.roundToInt() - duration) <= 2 }
 }
 
-// Relaxed matching with ±5 seconds tolerance
-internal fun List<Track>.bestMatchingForRelaxed(duration: Int): Track? {
+// Relaxed matching with ±8 seconds tolerance
+internal fun List<Track>.bestMatchingForRelaxed(
+  duration: Int,
+  trackName: String? = null,
+  artistName: String? = null,
+): Track? {
   if (isEmpty()) return null
 
-  if (duration == -1) {
-    return firstOrNull { it.syncedLyrics != null } ?: firstOrNull()
+  bestSyncedMatch(duration, trackName, artistName)?.let { return it }
+
+  if (duration <= 0) {
+    return if (trackName != null && artistName != null) {
+      findBestMatch(trackName, artistName)
+    } else {
+      firstOrNull { !it.plainLyrics.isNullOrBlank() } ?: firstOrNull()
+    }
   }
 
-  // First try to find synced lyrics within tolerance
-  val syncedMatch =
-    filter { it.syncedLyrics != null }
-      .minByOrNull { abs(it.duration.toInt() - duration) }
-      ?.takeIf { abs(it.duration.toInt() - duration) <= 5 }
+  val withinTolerance = filter { !it.plainLyrics.isNullOrBlank() && it.matchesDuration(duration) }
+  if (withinTolerance.isEmpty()) return null
 
-  if (syncedMatch != null) return syncedMatch
+  return if (trackName != null && artistName != null) {
+    withinTolerance.findBestMatch(trackName, artistName, duration)
+  } else {
+    withinTolerance.minByOrNull { abs(it.duration.roundToInt() - duration) }
+  }
+}
 
-  // Fall back to any lyrics within tolerance
-  return minByOrNull { abs(it.duration.toInt() - duration) }
-    ?.takeIf { abs(it.duration.toInt() - duration) <= 5 }
+internal fun List<Track>.bestSyncedMatch(
+  duration: Int,
+  trackName: String? = null,
+  artistName: String? = null,
+): Track? {
+  val syncedTracks = filter { !it.syncedLyrics.isNullOrBlank() && it.matchesDuration(duration) }
+  if (syncedTracks.isEmpty()) return null
+
+  if (trackName != null && artistName != null) {
+    return syncedTracks.findBestMatch(trackName, artistName, duration)
+  }
+
+  return if (duration <= 0) {
+    syncedTracks.firstOrNull()
+  } else {
+    syncedTracks.minByOrNull { abs(it.duration.roundToInt() - duration) }
+  }
 }
 
 internal fun List<Track>.bestMatchingFor(
@@ -52,44 +86,58 @@ internal fun List<Track>.bestMatchingFor(
 ): Track? {
   if (isEmpty()) return null
 
-  if (duration == -1) {
+  if (duration <= 0) {
     if (trackName != null && artistName != null) {
       return findBestMatch(trackName, artistName)
     }
-    return firstOrNull { it.syncedLyrics != null } ?: firstOrNull()
+    return firstOrNull { !it.syncedLyrics.isNullOrBlank() } ?: firstOrNull()
   }
 
-  // Use relaxed matching for duration-based search
-  return bestMatchingForRelaxed(duration)
+  return bestMatchingForRelaxed(duration, trackName, artistName)
 }
 
-private fun List<Track>.findBestMatch(trackName: String, artistName: String): Track? {
+private fun List<Track>.findBestMatch(
+  trackName: String,
+  artistName: String,
+  duration: Int = -1,
+): Track? {
   val normalizedTrackName = trackName.trim().lowercase()
   val normalizedArtistName = artistName.trim().lowercase()
 
-  return maxByOrNull { track ->
-      var score = 0.0
-
-      val trackNameSimilarity =
-        calculateSimilarity(normalizedTrackName, track.trackName.trim().lowercase())
-
-      val artistNameSimilarity =
-        calculateSimilarity(normalizedArtistName, track.artistName.trim().lowercase())
-
-      score = (trackNameSimilarity + artistNameSimilarity) / 2.0
-
-      if (track.syncedLyrics != null) score += 0.1
-
-      score
-    }
-    ?.takeIf { track ->
+  val scored =
+    mapNotNull { track ->
       val trackNameSimilarity =
         calculateSimilarity(normalizedTrackName, track.trackName.trim().lowercase())
       val artistNameSimilarity =
-        calculateSimilarity(normalizedArtistName, track.artistName.trim().lowercase())
+        if (normalizedArtistName.isBlank()) {
+          1.0
+        } else {
+          calculateSimilarity(normalizedArtistName, track.artistName.trim().lowercase())
+        }
 
-      (trackNameSimilarity + artistNameSimilarity) / 2.0 > 0.6
+      val combinedSimilarity =
+        if (normalizedArtistName.isBlank()) {
+          trackNameSimilarity
+        } else {
+          (trackNameSimilarity * 0.6) + (artistNameSimilarity * 0.4)
+        }
+
+      // Reject unrelated tracks when searching by free-text query
+      val validMatch =
+        trackNameSimilarity >= 0.45 &&
+          (normalizedArtistName.isBlank() || artistNameSimilarity >= 0.35 || combinedSimilarity >= 0.55)
+      if (!validMatch) return@mapNotNull null
+
+      var score = combinedSimilarity
+      if (!track.syncedLyrics.isNullOrBlank()) score += 0.25
+      if (duration > 0) {
+        val diff = abs(track.duration.roundToInt() - duration)
+        score += (1.0 - (diff.toDouble() / DURATION_TOLERANCE_SECONDS.toDouble())) * 0.15
+      }
+      track to score
     }
+
+  return scored.maxByOrNull { it.second }?.first
 }
 
 private fun calculateSimilarity(str1: String, str2: String): Double {

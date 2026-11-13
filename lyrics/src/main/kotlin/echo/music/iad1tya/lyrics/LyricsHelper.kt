@@ -37,7 +37,9 @@ constructor(
 
   private suspend fun resolveLyricsProviders(): List<LyricsProvider> {
     val defaultOrder = LyricsProviderRegistry.getDefaultProviderOrder()
-    return defaultOrder.mapNotNull { LyricsProviderRegistry.getProviderByName(it) }
+    return defaultOrder
+      .mapNotNull { LyricsProviderRegistry.getProviderByName(it) }
+      .filter { it.isEnabled(context) }
   }
 
   private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
@@ -107,13 +109,32 @@ constructor(
         receivedUnsynced.add(result)
       }
 
-      val best = receivedUnsynced.firstOrNull() ?: LyricsWithProvider(LYRICS_NOT_FOUND, "Unknown")
+      val best =
+        receivedUnsynced
+          .minWithOrNull(
+            compareBy<LyricsWithProvider>(
+              {
+                when (it.providerName) {
+                  YouTubeLyricsProvider.name -> 2
+                  YouTubeSubtitleLyricsProvider.name -> 1
+                  else -> 0
+                }
+              },
+              { providerPriorityIndex(providers, it.providerName) },
+            )
+          )
+          ?: LyricsWithProvider(LYRICS_NOT_FOUND, "Unknown")
       if (best.lyrics != null && best.lyrics != LYRICS_NOT_FOUND) {
         cache.put(mediaMetadata.id, listOf(LyricsResult(best.providerName, best.lyrics.orEmpty())))
       }
       best
     }
   }
+
+  private fun providerPriorityIndex(
+    providers: List<LyricsProvider>,
+    providerName: String,
+  ): Int = providers.indexOfFirst { it.name == providerName }.let { if (it == -1) Int.MAX_VALUE else it }
 
   private suspend fun fetchLyricsFromProvider(
     provider: LyricsProvider,
@@ -204,7 +225,7 @@ constructor(
 
   companion object {
     private const val MAX_CACHE_SIZE = 20
-    private const val PROVIDER_TIMEOUT_MS = 5_000L
+    private const val PROVIDER_TIMEOUT_MS = 10_000L
   }
 }
 

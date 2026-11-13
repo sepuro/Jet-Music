@@ -14,6 +14,7 @@ data class PlayerResponse(
   val streamingData: StreamingData?,
   val videoDetails: VideoDetails?,
   @SerialName("playbackTracking") val playbackTracking: PlaybackTracking?,
+  val captions: Captions? = null,
 ) {
   @Serializable
   data class PlayabilityStatus(
@@ -108,5 +109,30 @@ data class PlayerResponse(
     data class AtrUrl(
       @SerialName("baseUrl") val baseUrl: String?,
     )
+  }
+
+  @Serializable
+  data class Captions(
+    val playerCaptionsTracklistRenderer: PlayerCaptionsTracklistRenderer? = null,
+  ) {
+    @Serializable
+    data class PlayerCaptionsTracklistRenderer(
+      val captionTracks: List<CaptionTrack>? = null,
+    ) {
+      @Serializable
+      data class CaptionTrack(
+        val baseUrl: String? = null,
+        val name: Name? = null,
+        val vssId: String? = null,
+        val languageCode: String? = null,
+        val kind: String? = null,
+        val isTranslatable: Boolean? = null,
+      ) {
+        @Serializable
+        data class Name(
+          val simpleText: String? = null,
+        )
+      }
+    }
   }
 }

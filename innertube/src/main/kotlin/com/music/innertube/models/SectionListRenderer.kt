@@ -3,6 +3,7 @@ package com.music.innertube.models
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class SectionListRenderer(
@@ -49,6 +50,7 @@ data class SectionListRenderer(
     val musicEditablePlaylistDetailHeaderRenderer: MusicEditablePlaylistDetailHeaderRenderer?,
     val gridRenderer: GridRenderer?,
     val itemSectionRenderer: ItemSectionRenderer?,
+    val elementRenderer: JsonObject? = null,
   )
 }
 
