@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+  <title>Jet Music — Music that moves you. No ads. No limits.</title>
+
+  <!-- SEO & Brand Metadata -->
+  <meta name="title" content="Jet Music — Music that moves you. No ads. No limits." />
+  <meta name="description" content="Jet Music is an open-source Android music player built with Jetpack Compose and Media3 (ExoPlayer), featuring synced LRC lyrics, Music Flow 1080p playback, Dolby Atmos DSP support, and Android TV navigation." />
+  <meta name="author" content="Jet Music" />
+  <meta name="theme-color" content="#FFFFFF" />
+  <link rel="canonical" href="https://jetmusic.site/" />
+
+  <!-- Open Graph / Social Media -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://jetmusic.site/" />
+  <meta property="og:title" content="Jet Music — Music that moves you. No ads. No limits." />
+  <meta property="og:description" content="Jet Music is an open-source Android music player built with Jetpack Compose and Media3, featuring synced LRC lyrics, Music Flow 1080p, Spatial Audio DSP, and Android TV support." />
+  <meta property="og:image" content="https://jetmusic.site/og-image.png" />
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://jetmusic.site/" />
+  <meta name="twitter:title" content="Jet Music — Music that moves you. No ads. No limits." />
+  <meta name="twitter:description" content="Jet Music is an open-source Android music player built with Jetpack Compose and Media3, featuring synced LRC lyrics, Music Flow 1080p, Spatial Audio DSP, and Android TV support." />
+  <meta name="twitter:image" content="https://jetmusic.site/og-image.png" />
+
+  <!-- Favicons & Web App Manifest -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="manifest" href="site.webmanifest" />
+
+  <!-- Geometric Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Jet Music",
+    "operatingSystem": "Android 8.0+",
+    "applicationCategory": "MultimediaApplication",
+    "softwareVersion": "2.2.1",
+    "url": "https://jetmusic.site/",
+    "downloadUrl": "https://github.com/sepuro/Jet-Music/releases/latest",
+    "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+    "author": {
+      "@type": "Person",
+      "name": "sepuro",
+      "url": "https://github.com/sepuro"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    html, body {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+      background: #FFFFFF;
+      color: #111113;
+    }
+
+    /* ── Hero Section (First Screen Preserved Exactly) ── */
+    .hero {
+      min-height: 100dvh;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 32px 24px;
+      background: linear-gradient(0deg, #D9232E 0%, #F46068 32%, #FDE8E9 65%, #FFFFFF 100%);
+      color: #111113;
+    }
+
+    .container {
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .logo-wrapper {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: #111113;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 28px;
+      flex-shrink: 0;
+    }
+
+    .logo-wrapper svg {
+      width: 96px;
+      height: 96px;
+      display: block;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 7.5vw, 2.5rem);
+      font-weight: 800;
+      color: #111113;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+      margin-bottom: 16px;
+    }
+
+    p.description {
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.55;
+      color: #3A3A3C;
+      margin-bottom: 32px;
+    }
+
+    .actions {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .btn-primary {
+      width: 100%;
+      height: 56px;
+      border-radius: 9999px;
+      background: #111113;
+      color: #FFFFFF;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(17, 17, 19, 0.22);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(17, 17, 19, 0.28);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.985);
+    }
+
+    .btn-secondary {
+      margin-top: 14px;
+      width: 100%;
+      height: 54px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: #111113;
+      font-size: 0.96875rem;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      transition: transform 0.18s ease, background 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.96);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary:active {
+      transform: scale(0.985);
+    }
+
+    .github-avatar-fab {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 50;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      border: 2.5px solid #111113;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+      display: block;
+      background: #111113;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .github-avatar-fab:hover {
+      transform: scale(1.06);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+    }
+
+    .github-avatar-fab:active {
+      transform: scale(0.95);
+    }
+
+    .github-avatar-fab img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+    }
+
+    /* ── Minimalist Editorial Content Below the Fold ── */
+    .editorial {
+      width: 100%;
+      background: #FFFFFF;
+      color: #111113;
+      border-top: 1px solid rgba(17, 17, 19, 0.08);
+    }
+
+    .editorial-nav {
+      width: 100%;
+      border-bottom: 1px solid rgba(17, 17, 19, 0.08);
+      background: #FAFAFB;
+    }
+
+    .editorial-nav-inner {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px 24px;
+    }
+
+    .nav-brand {
+      font-size: 0.875rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #111113;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #3A3A3C;
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      color: #D9232E;
+    }
+
+    .editorial-wrap {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 56px 24px 72px;
+    }
+
+    .doc-section {
+      padding-bottom: 52px;
+      margin-bottom: 52px;
+      border-bottom: 1px solid rgba(17, 17, 19, 0.08);
+    }
+
+    .doc-section:last-of-type {
+      margin-bottom: 0;
+      padding-bottom: 12px;
+      border-bottom: none;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #D9232E;
+      margin-bottom: 10px;
+    }
+
+    .doc-section h2 {
+      font-size: clamp(1.5rem, 4vw, 1.95rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.2;
+      color: #111113;
+      margin-bottom: 18px;
+    }
+
+    .doc-section h3 {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      color: #111113;
+      margin-top: 28px;
+      margin-bottom: 10px;
+    }
+
+    .doc-section p {
+      font-size: 0.985rem;
+      line-height: 1.72;
+      color: #3A3A3C;
+      margin-bottom: 16px;
+    }
+
+    .doc-section p:last-child {
+      margin-bottom: 0;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 24px 0 8px;
+    }
+
+    .spec-card {
+      background: #FAFAFB;
+      border: 1px solid rgba(17, 17, 19, 0.08);
+      border-radius: 16px;
+      padding: 18px 20px;
+    }
+
+    .spec-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #6E6E73;
+      margin-bottom: 6px;
+    }
+
+    .spec-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #111113;
+      line-height: 1.45;
+    }
+
+    .step-list {
+      list-style: none;
+      margin: 20px 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 18px 20px;
+      background: #FAFAFB;
+      border: 1px solid rgba(17, 17, 19, 0.08);
+      border-radius: 16px;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #111113;
+      color: #FFFFFF;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+
+    .step-body h4 {
+      font-size: 0.985rem;
+      font-weight: 600;
+      color: #111113;
+      margin-bottom: 4px;
+    }
+
+    .step-body p {
+      font-size: 0.9375rem;
+      line-height: 1.62;
+      color: #3A3A3C;
+      margin-bottom: 0;
+    }
+
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .faq-item {
+      padding: 22px 24px;
+      background: #FAFAFB;
+      border: 1px solid rgba(17, 17, 19, 0.08);
+      border-radius: 16px;
+    }
+
+    .faq-item h3 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 1.025rem;
+      color: #111113;
+    }
+
+    .faq-item p {
+      font-size: 0.9375rem;
+      line-height: 1.68;
+      color: #3A3A3C;
+      margin-bottom: 0;
+    }
+
+    .inline-link {
+      color: #111113;
+      font-weight: 600;
+      text-decoration: underline;
+      text-decoration-color: rgba(17, 17, 19, 0.28);
+      text-underline-offset: 3px;
+    }
+
+    .inline-link:hover {
+      color: #D9232E;
+      text-decoration-color: #D9232E;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.86em;
+      background: rgba(17, 17, 19, 0.06);
+      padding: 2px 6px;
+      border-radius: 6px;
+      color: #111113;
+    }
+
+    /* ── Minimalist Footer ── */
+    .site-footer {
+      width: 100%;
+      background: #FAFAFB;
+      border-top: 1px solid rgba(17, 17, 19, 0.08);
+      padding: 36px 24px 88px;
+    }
+
+    .footer-inner {
+      max-width: 820px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #111113;
+      text-decoration: none;
+    }
+
+    .footer-links a:hover {
+      color: #D9232E;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .footer-meta {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      color: #6E6E73;
+    }
+
+    @media (min-width: 768px) {
+      .site-footer {
+        padding-bottom: 48px;
+      }
+
+      .footer-inner {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+  </style>
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-1460228543841383">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1460228543841383"
+     crossorigin="anonymous"></script>
+</head>
+<body>
+  <!-- ── First Screen Hero (Preserved) ── -->
+  <section class="hero" aria-label="Jet Music Overview">
+    <div class="container">
+      <!-- 1. Official Jet Music Circular Dark Logo (96x96) -->
+      <div class="logo-wrapper" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="96" height="96">
+          <circle cx="256" cy="256" r="256" fill="#111113" />
+          <g transform="translate(256, 256) scale(210)">
+            <circle cx="0" cy="0" r="0.64" fill="none" stroke="#FFFFFF" stroke-width="0.064" />
+            <line x1="-0.44" y1="-0.22" x2="-0.44" y2="0.22" stroke="#FFFFFF" stroke-width="0.084" stroke-linecap="round" />
+            <polygon points="-0.34,-0.38 0.44,-0.02 -0.14,0.04" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="0.036" stroke-linejoin="round" />
+            <polygon points="-0.14,0.11 0.44,0.02 -0.34,0.38" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="0.030" stroke-linejoin="round" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- 2. Minimalist Title & Description -->
+      <h1>Music that moves you.<br>No ads. No limits.</h1>
+      <p class="description">
+        Jet Music is a free music streaming app for Android with ad-free playback, synced lyrics, Music Flow, and a pure minimalist experience.
+      </p>
+
+      <!-- 3. Two Capsule Buttons Only -->
+      <div class="actions">
+        <a
+          id="download-apk-btn"
+          class="btn-primary"
+          href="https://github.com/sepuro/Jet-Music/releases/latest"
+          rel="noopener"
+        >
+          Download APK
+        </a>
+
+        <a
+          class="btn-secondary"
+          href="https://github.com/sepuro/Jet-Music"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View Source Code
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Editorial Documentation & Technical Overview ── -->
+  <main class="editorial" id="documentation">
+    <nav class="editorial-nav" aria-label="Documentation sections">
+      <div class="editorial-nav-inner">
+        <a class="nav-brand" href="#documentation">Jet Music Docs · v2.2.1</a>
+        <ul class="nav-links">
+          <li><a href="#architecture">Architecture</a></li>
+          <li><a href="#installation">Installation &amp; OTA</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="privacy.html">Privacy Policy</a></li>
+          <li><a href="terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="editorial-wrap">
+      <!-- Section 1: Architecture & Technical Features -->
+      <article class="doc-section" id="architecture">
+        <span class="eyebrow">01 · Engineering &amp; Architecture</span>
+        <h2>Built with Media3, Jetpack Compose, and Modular Audio DSP</h2>
+        <p>
+          Jet Music is engineered in Kotlin as a multi-module Android application designed around predictable playback latency, clean visual hierarchy, and local-first reliability. Rather than bundling heavy web wrappers or bloated background frameworks, the codebase separates audio transport, digital signal processing, lyrics resolution, and Compose UI rendering into isolated Gradle modules so every layer remains lightweight and responsive.
+        </p>
+
+        <div class="spec-grid">
+          <div class="spec-card">
+            <div class="spec-label">Playback Core</div>
+            <div class="spec-value">AndroidX Media3 &amp; ExoPlayer with ChunkingDataSource</div>
+          </div>
+          <div class="spec-card">
+            <div class="spec-label">Audio Processing</div>
+            <div class="spec-value">Dolby Atmos, Spatial Audio &amp; USB DAC DSP Pipeline</div>
+          </div>
+          <div class="spec-card">
+            <div class="spec-label">Synced Lyrics</div>
+            <div class="spec-value">Multi-provider LRC Priority &amp; Millisecond Offset</div>
+          </div>
+          <div class="spec-card">
+            <div class="spec-label">Visual &amp; TV</div>
+            <div class="spec-value">Music Flow 1080p Feed &amp; Android TV D-Pad Support</div>
+          </div>
+        </div>
+
+        <h3>Media3 / ExoPlayer Playback Engine</h3>
+        <p>
+          At the core of the <code>:playback</code> module, Jet Music runs a dedicated <code>MediaSessionService</code> backed by AndroidX Media3 and ExoPlayer. Network streams and local audio files flow through a custom <code>ChunkingDataSource</code> and OkHttp transport layer that minimizes start-up buffering, supports gapless track transitions, and maintains reliable lock-screen, Bluetooth, and Android Auto media controls. Playback progress state is isolated from root Compose hierarchies so timeline updates never force full-screen recompositions.
+        </p>
+
+        <h3>Dolby Atmos, Spatial Audio &amp; USB Audio DSP</h3>
+        <p>
+          For listeners using studio headphones, wireless codecs, or external DAC hardware, Jet Music integrates dedicated <code>:dsp-core</code>, <code>:audio-dsp</code>, and <code>:usbaudio</code> modules. The engine exposes hardware-assisted Spatial Audio and Dolby Atmos profiles alongside customizable multi-band equalization. When an external USB audio interface is connected, audio routing can bypass unnecessary software resampling to preserve dynamic range and stereo separation.
+        </p>
+
+        <h3>Real-Time Synchronized Lyrics (LRC)</h3>
+        <p>
+          The <code>:lyrics</code> orchestration layer queries multiple open lyrics providers—prioritizing timestamped <code>[mm:ss.xx]</code> LRC sources such as LrcLib and KuGou before falling back to timed subtitle tracks and plain text only as a last resort. Starting in v2.2.1, Jet Music performs multi-stage query normalization to match remixes, live versions, and featured artist credits within an expanded duration tolerance, while purging unsynced cached entries from the local Room database so time-aligned lyrics stay accurate. Users can also adjust per-track millisecond offsets that persist locally across sessions.
+        </p>
+
+        <h3>Music Flow 1080p Visual Feed &amp; Native Android TV</h3>
+        <p>
+          Music Flow provides an optional full-screen vertical discovery experience built directly on top of the shared <code>MusicService</code> queue without spawning duplicate ExoPlayer instances. Video surfaces render through hardware-accelerated <code>TextureView</code> layers with smooth alpha-blended transitions, selectable playback quality up to 1080p Full HD, and 50ms lyric synchronization. On living-room screens, Jetpack Compose adaptive layouts automatically scale into a clean, D-Pad-friendly Android TV interface with zero extra configuration.
+        </p>
+      </article>
+
+      <!-- Section 2: Installation & OTA Updates Guide -->
+      <article class="doc-section" id="installation">
+        <span class="eyebrow">02 · Deployment &amp; Maintenance</span>
+        <h2>Installation Guide &amp; Automatic OTA Updates</h2>
+        <p>
+          Jet Music is distributed as a signed, standalone Android Package (APK) compiled in GitHub Actions directly from the public source repository. Before installing, review the minimum device requirements and follow the three steps below to set up the application cleanly.
+        </p>
+
+        <div class="spec-grid">
+          <div class="spec-card">
+            <div class="spec-label">Minimum OS</div>
+            <div class="spec-value">Android 8.0 Oreo (API Level 26) or newer</div>
+          </div>
+          <div class="spec-card">
+            <div class="spec-label">Supported ABIs</div>
+            <div class="spec-value">Universal (arm64-v8a &amp; armeabi-v7a)</div>
+          </div>
+          <div class="spec-card">
+            <div class="spec-label">Current Release</div>
+            <div class="spec-value">v2.2.1 (versionCode 197)</div>
+          </div>
+        </div>
+
+        <ol class="step-list">
+          <li class="step-item">
+            <span class="step-num">1</span>
+            <div class="step-body">
+              <h4>Download the Official Signed APK</h4>
+              <p>Tap <strong>Download APK</strong> at the top of this page or visit the <a class="inline-link" href="https://github.com/sepuro/Jet-Music/releases/latest" target="_blank" rel="noopener noreferrer">GitHub Releases</a> page to fetch the latest universal APK built from the <code>main</code> branch.</p>
+            </div>
+          </li>
+          <li class="step-item">
+            <span class="step-num">2</span>
+            <div class="step-body">
+              <h4>Authorize Package Installation on Android</h4>
+              <p>Open the downloaded <code>.apk</code> file from your browser or Android Files app. If prompted by Android security settings, enable <em>Install unknown apps</em> for your browser or file manager, confirm the installation prompt, and wait a few seconds for package verification.</p>
+            </div>
+          </li>
+          <li class="step-item">
+            <span class="step-num">3</span>
+            <div class="step-body">
+              <h4>Receive Seamless In-App OTA Updates</h4>
+              <p>Once installed, Jet Music includes a built-in over-the-air (OTA) updater that checks GitHub Releases for newer monotonic <code>versionCode</code> builds. When an update is available, the app downloads the APK securely, hands it off to Android's package installer via <code>FileProvider</code>, and upgrades in place without erasing your local playlists, Room history, or preferences.</p>
+            </div>
+          </li>
+        </ol>
+
+        <p>
+          All official release builds are signed using unified v1, v2, and v3 <code>apksigner</code> schemes and verified for SHA-256 certificate consistency in our CI pipeline. This guarantees that OTA updates install cleanly over previous versions and protects users against tampered third-party repackages.
+        </p>
+      </article>
+
+      <!-- Section 3: Frequently Asked Questions (6 Complete Q&As) -->
+      <article class="doc-section" id="faq">
+        <span class="eyebrow">03 · Frequently Asked Questions</span>
+        <h2>Performance, Caching, Compatibility &amp; Privacy</h2>
+        <p>
+          Answers to the most common technical questions about how Jet Music runs on modern and older Android hardware.
+        </p>
+
+        <div class="faq-list">
+          <section class="faq-item">
+            <h3>1. How does Jet Music deliver smooth 60–120Hz animations without UI stutter?</h3>
+            <p>
+              The Compose UI layer enables Strong Skipping Mode and stability configurations across domain and database models. Playback timers are read exclusively inside draw-phase callbacks rather than triggering parent layout recompositions, while album artwork color extraction runs off the main thread on downscaled 64×64 bitmaps using <code>Dispatchers.Default</code>.
+            </p>
+          </section>
+
+          <section class="faq-item">
+            <h3>2. How does background playback affect battery consumption?</h3>
+            <p>
+              Audio playback runs inside a standard Android Media3 foreground service using hardware-accelerated decoders, allowing the screen to stay off with minimal CPU wakeups. When Music Flow or background video playback is active and the user collapses the player into the MiniPlayer, the video <code>TextureView</code> surface is disposed immediately so GPU memory and video decoding do not drain battery in the background.
+            </p>
+          </section>
+
+          <section class="faq-item">
+            <h3>3. How does smart caching work for artwork, streams, and synced lyrics?</h3>
+            <p>
+              Coil 3 manages image loading with a 25% RAM memory cache and a 250 MB disk cache using hardware bitmaps to avoid decoding oversized thumbnails during fast scrolling. Metadata, play statistics, and lyrics are stored locally in a versioned Room SQLite database. Unsynced plain-text lyric entries are automatically purged when empty or outdated so synchronized LRC timestamps take priority.
+            </p>
+          </section>
+
+          <section class="faq-item">
+            <h3>4. Which Android devices, screen sizes, and peripherals are supported?</h3>
+            <p>
+              Jet Music supports Android 8.0 (API 26) through Android 16 across <code>arm64-v8a</code> and <code>armeabi-v7a</code> processors. Adaptive Compose layouts automatically adjust for compact phones, foldables, tablets, and Android TV screens with full D-Pad navigation, alongside Bluetooth audio devices and external USB-C DACs.
+            </p>
+          </section>
+
+          <section class="faq-item">
+            <h3>5. What user data is collected, and how does Jet Music protect privacy?</h3>
+            <p>
+              Listening history, playlists, custom equalizer profiles, and taste snapshots are stored locally on your device using Room and DataStore Preferences. Optional integrations—such as Last.fm scrobbling, Discord Rich Presence, or custom AI translation endpoints—remain disabled unless explicitly configured by the user. Website visitors can review our full cookie and AdSense disclosures in the <a class="inline-link" href="privacy.html">Privacy Policy</a>.
+            </p>
+          </section>
+
+          <section class="faq-item">
+            <h3>6. How can I verify that an APK download is authentic and safe?</h3>
+            <p>
+              Every release of Jet Music is compiled transparently from the public <a class="inline-link" href="https://github.com/sepuro/Jet-Music" target="_blank" rel="noopener noreferrer">GitHub repository</a> via automated GitHub Actions workflows and signed with a consistent release certificate. Always download builds directly from <code>jetmusic.site</code> or the official GitHub Releases page rather than third-party mirror sites.
+            </p>
+          </section>
+        </div>
+      </article>
+
+      <!-- Section 4: About Project -->
+      <section class="doc-section" id="about">
+        <span class="eyebrow">04 · Open Source Project</span>
+        <h2>Transparent Audio Engineering for Android</h2>
+        <p>
+          Jet Music is an open-source project maintained by <a class="inline-link" href="https://github.com/sepuro" target="_blank" rel="noopener noreferrer">sepuro</a> under the GNU General Public License v3.0, building upon modern Android audio tooling and clean Nothing-inspired typography. Source code, release notes, automated build logs, and community issue tracking are publicly accessible on GitHub. For project background, documentation, and support channels, visit the <a class="inline-link" href="about.html">About &amp; Contact</a> page.
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <!-- ── Footer with Mandatory Legal & Navigation Links ── -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <ul class="footer-links">
+        <li><a href="privacy.html">Privacy Policy</a></li>
+        <li><a href="terms.html">Terms of Service</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="about.html#contact">Contact</a></li>
+        <li><a href="https://github.com/sepuro/Jet-Music" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      </ul>
+      <p class="footer-meta">
+        © 2026 Jet Music · Open-source Android audio player by <a class="inline-link" href="https://github.com/sepuro" target="_blank" rel="noopener noreferrer">sepuro</a>.
+      </p>
+    </div>
+  </footer>
+
+  <!-- 4. Floating Bottom-Right GitHub Profile Avatar -->
+  <a
+    class="github-avatar-fab"
+    href="https://github.com/sepuro/Jet-Music"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Open Jet Music on GitHub"
+  >
+    <img src="https://github.com/sepuro.png" alt="sepuro GitHub Profile" loading="eager" />
+  </a>
+
+  <script>
+    (function () {
+      const FALLBACK_URL = 'https://github.com/sepuro/Jet-Music/releases/latest';
+      const API_URL = 'https://api.github.com/repos/sepuro/Jet-Music/releases/latest';
+      const downloadBtn = document.getElementById('download-apk-btn');
+      let resolvedApkUrl = null;
+
+      async function resolveLatestApk() {
+        try {
+          const response = await fetch(API_URL, {
+            headers: { Accept: 'application/vnd.github+json' }
+          });
+          if (!response.ok) return null;
+          const release = await response.json();
+          const assets = Array.isArray(release.assets) ? release.assets : [];
+          const apkAsset = assets.find(function (asset) {
+            return asset && typeof asset.browser_download_url === 'string' && asset.browser_download_url.toLowerCase().endsWith('.apk');
+          });
+          if (apkAsset && apkAsset.browser_download_url) {
+            resolvedApkUrl = apkAsset.browser_download_url;
+            if (downloadBtn) {
+              downloadBtn.href = resolvedApkUrl;
+            }
+            return resolvedApkUrl;
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      resolveLatestApk();
+
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', async function (event) {
+          if (resolvedApkUrl) {
+            return;
+          }
+          event.preventDefault();
+          const apkUrl = await resolveLatestApk();
+          window.location.href = apkUrl || FALLBACK_URL;
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
