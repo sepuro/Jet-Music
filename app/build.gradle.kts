@@ -33,8 +33,8 @@ android {
     applicationId = "app.jetmusic.android"
     minSdk = 26
     targetSdk = 36
-    versionCode = 197
-    versionName = "2.2.1"
+    versionCode = 198
+    versionName = "2.2.2"
 
     ndk {
       abiFilters += listOf("arm64-v8a", "armeabi-v7a")

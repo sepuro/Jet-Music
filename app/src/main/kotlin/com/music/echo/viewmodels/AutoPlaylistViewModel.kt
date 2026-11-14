@@ -15,6 +15,7 @@ import echo.music.iad1tya.constants.SongSortDescendingKey
 import echo.music.iad1tya.constants.SongSortType
 import echo.music.iad1tya.constants.SongSortTypeKey
 import echo.music.iad1tya.db.MusicDatabase
+import echo.music.iad1tya.db.entities.Song
 import echo.music.iad1tya.extensions.filterExplicit
 import echo.music.iad1tya.extensions.filterVideoSongs
 import echo.music.iad1tya.extensions.toEnum
@@ -24,6 +25,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -50,7 +52,7 @@ constructor(
   val isRefreshing = _isRefreshing.asStateFlow()
 
   @OptIn(ExperimentalCoroutinesApi::class)
-  val likedSongs =
+  val likedSongs: StateFlow<List<Song>?> =
     context.dataStore.data
       .map {
         Triple(
@@ -111,7 +113,7 @@ constructor(
           else -> kotlinx.coroutines.flow.flowOf(emptyList())
         }
       }
-      .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
+      .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, null)
 
   fun syncLikedSongs() {
     viewModelScope.launch(Dispatchers.IO) { syncUtils.syncLikedSongs() }

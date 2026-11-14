@@ -470,16 +470,15 @@ fun LocalPlaylistScreen(
     ) {
       playlist?.let { playlist ->
         if (playlist.songCount == 0 && (playlist.playlist.remoteSongCount ?: 0) == 0) {
-          item(key = "empty_placeholder") {
+          item(key = "empty_placeholder", contentType = "empty_placeholder") {
             EmptyPlaceholder(
               icon = R.drawable.music_note,
               text = stringResource(R.string.playlist_is_empty),
-              modifier = Modifier.animateItem()
             )
           }
         } else {
           if (!isSearching) {
-            item(key = "playlist_header") {
+            item(key = "playlist_header", contentType = "playlist_header") {
               LocalPlaylistHeader(
                 playlist = playlist,
                 songs = songs,
@@ -491,15 +490,15 @@ fun LocalPlaylistScreen(
                   exportCsvLauncher.launchSafely("${playlist.playlist.name}_export.csv", context)
                 },
                 snackbarHostState = snackbarHostState,
-                modifier = Modifier.animateItem()
+                modifier = Modifier
               )
             }
           }
 
-          item(key = "controls_row") {
+          item(key = "controls_row", contentType = "controls_row") {
             Row(
               verticalAlignment = Alignment.CenterVertically,
-              modifier = Modifier.padding(start = 16.dp).animateItem(),
+              modifier = Modifier.padding(start = 16.dp),
             ) {
               SortHeader(
                 sortType = sortType,
@@ -552,6 +551,7 @@ fun LocalPlaylistScreen(
       itemsIndexed(
         items = if (isSearching) filteredSongs else mutableSongs,
         key = { _, song -> song.map.id },
+        contentType = { _, _ -> "song_item" },
       ) { index, song ->
         ReorderableItem(
           state = reorderableState,
@@ -710,6 +710,7 @@ fun LocalPlaylistScreen(
     )
 
     TopAppBar(
+      windowInsets = androidx.compose.material3.TopAppBarDefaults.windowInsets,
       title = {
         if (inSelectMode) {
           Text(pluralStringResource(R.plurals.n_selected, selection.size, selection.size))
@@ -999,13 +1000,14 @@ fun LocalPlaylistHeader(
     }
   }
 
-  LaunchedEffect(songs) {
-    if (songs.isEmpty()) {
+  val songIds = remember(songs) { songs.map { it.song.id } }
+  LaunchedEffect(songIds) {
+    if (songIds.isEmpty()) {
       downloadState = Download.STATE_STOPPED
       return@LaunchedEffect
     }
     downloadUtil.downloads.collect { downloads ->
-      downloadState = DownloadUtil.computeDownloadState(songs.map { it.song.id }, downloads)
+      downloadState = DownloadUtil.computeDownloadState(songIds, downloads)
     }
   }
 

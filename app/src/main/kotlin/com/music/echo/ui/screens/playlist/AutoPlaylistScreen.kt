@@ -60,6 +60,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -71,7 +72,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachReversed
 import androidx.compose.ui.util.fastSumBy
@@ -86,6 +86,7 @@ import echo.music.iad1tya.LocalDownloadUtil
 import echo.music.iad1tya.LocalPlayerAwareWindowInsets
 import echo.music.iad1tya.LocalPlayerConnection
 import echo.music.iad1tya.R
+import echo.music.iad1tya.constants.AppBarHeight
 import echo.music.iad1tya.constants.HideExplicitKey
 import echo.music.iad1tya.constants.DownloadedSongSortTypeKey
 import echo.music.iad1tya.constants.DownloadedSongSortDescendingKey
@@ -145,8 +146,8 @@ fun AutoPlaylistScreen(
       else -> stringResource(R.string.offline)
     }
 
-  val songs by viewModel.likedSongs.collectAsState(null)
-  val mutableSongs = remember { mutableStateListOf<Song>() }
+  val songs by viewModel.likedSongs.collectAsState()
+  val songIds = remember(songs) { songs?.map { it.song.id } }
 
   var isSearching by remember { mutableStateOf(false) }
   var query by remember { mutableStateOf(TextFieldValue()) }
@@ -224,17 +225,13 @@ fun AutoPlaylistScreen(
     }
   }
 
-  LaunchedEffect(songs) {
-    mutableSongs.apply {
-      clear()
-      songs?.let { addAll(it) }
-    }
-    if (songs.isNullOrEmpty()) {
+  LaunchedEffect(songIds) {
+    if (songIds.isNullOrEmpty()) {
       downloadState = Download.STATE_STOPPED
       return@LaunchedEffect
     }
     downloadUtil.downloads.collect { downloads ->
-      downloadState = DownloadUtil.computeDownloadState(songs?.map { it.song.id }, downloads)
+      downloadState = DownloadUtil.computeDownloadState(songIds, downloads)
     }
   }
 
@@ -329,7 +326,7 @@ fun AutoPlaylistScreen(
           }
         } else {
           if (!isSearching) {
-            item(key = "playlist_header") {
+            item(key = "playlist_header", contentType = "playlist_header") {
               AutoPlaylistHeader(
                 name = playlist,
                 songs = songs!!,
@@ -338,12 +335,11 @@ fun AutoPlaylistScreen(
                 onShowRemoveDownloadDialog = { showRemoveDownloadDialog = true },
                 menuState = menuState,
                 playerConnection = playerConnection,
-                modifier = Modifier.animateItem()
               )
             }
           }
 
-          item(key = "songs_header") {
+          item(key = "songs_header", contentType = "songs_header") {
             Row(
               verticalAlignment = Alignment.CenterVertically,
               modifier = Modifier.padding(start = 16.dp),
@@ -371,6 +367,7 @@ fun AutoPlaylistScreen(
           itemsIndexed(
             items = filteredSongs,
             key = { _, song -> song.id },
+            contentType = { _, _ -> "song_item" },
           ) { index, song ->
             val onCheckedChange: (Boolean) -> Unit = {
               if (it) {
@@ -435,12 +432,11 @@ fun AutoPlaylistScreen(
                       }
                     },
                   )
-                  .animateItem()
             )
           }
         }
       }
-      item { Spacer(Modifier.height(50.dp)) }
+      item(key = "bottom_spacer", contentType = "bottom_spacer") { Spacer(Modifier.height(50.dp)) }
     }
 
     DraggableScrollbar(
@@ -453,7 +449,7 @@ fun AutoPlaylistScreen(
       headerItems = 2
     )
 
-    if (canRefresh) {
+    if (canRefresh && (isRefreshing || pullRefreshState.distanceFraction > 0f)) {
       Indicator(
         isRefreshing = isRefreshing,
         state = pullRefreshState,
@@ -464,6 +460,7 @@ fun AutoPlaylistScreen(
     }
 
     TopAppBar(
+      windowInsets = androidx.compose.material3.TopAppBarDefaults.windowInsets,
       title = {
         when {
           inSelectMode -> {
@@ -587,18 +584,27 @@ private fun AutoPlaylistHeader(
   val context = LocalContext.current
   val downloadUtil = LocalDownloadUtil.current
 
-  val density = androidx.compose.ui.platform.LocalDensity.current
-  val systemBarsTopPadding =
-    androidx.compose.foundation.layout.WindowInsets.systemBars
-      .asPaddingValues()
-      .calculateTopPadding()
-  val headerOffset = with(density) { -(systemBarsTopPadding + 64.dp).roundToPx() }
+  val systemBars = androidx.compose.foundation.layout.WindowInsets.systemBars
 
   Box(modifier = modifier.fillMaxWidth()) {
     if (songs.isNotEmpty()) {
       echo.music.iad1tya.ui.component.OnlineBlur(
         thumbnailUrl = songs.getOrNull(0)?.thumbnailUrl ?: "",
-        modifier = Modifier.matchParentSize().offset { IntOffset(0, headerOffset) }
+        modifier =
+          Modifier.matchParentSize().layout { measurable, constraints ->
+            val topBleedPx = systemBars.getTop(this) + AppBarHeight.roundToPx() + 4
+            val expandedConstraints =
+              if (constraints.hasFixedHeight) {
+                val targetHeight = constraints.maxHeight + topBleedPx
+                constraints.copy(minHeight = targetHeight, maxHeight = targetHeight)
+              } else {
+                constraints
+              }
+            val placeable = measurable.measure(expandedConstraints)
+            layout(placeable.width, (placeable.height - topBleedPx).coerceAtLeast(0)) {
+              placeable.place(0, -topBleedPx)
+            }
+          }
       )
     }
 

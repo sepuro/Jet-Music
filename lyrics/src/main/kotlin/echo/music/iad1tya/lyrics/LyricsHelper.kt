@@ -13,6 +13,7 @@ import echo.music.iad1tya.utils.NetworkConnectivityObserver
 import echo.music.iad1tya.utils.dataStore
 import echo.music.iad1tya.utils.reportException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -61,8 +62,10 @@ constructor(
   private var currentLyricsJob: Job? = null
 
   init {
-    fetchScope.launch {
-      runCatching { database.deleteUnsyncedLyrics() }
+    if (hasCleanedCacheOnce.compareAndSet(false, true)) {
+      fetchScope.launch {
+        runCatching { database.deleteUnsyncedLyrics() }
+      }
     }
   }
 
@@ -308,6 +311,7 @@ constructor(
   companion object {
     private const val MAX_CACHE_SIZE = 20
     private const val PROVIDER_TIMEOUT_MS = 10_000L
+    private val hasCleanedCacheOnce = AtomicBoolean(false)
   }
 }
 

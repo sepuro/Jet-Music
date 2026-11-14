@@ -1409,7 +1409,7 @@ fun BottomSheetPlayer(
                       CanvasArtworkPlayer(
                         primaryUrl = canvasArtwork?.animated,
                         fallbackUrl = canvasArtwork?.videoUrl,
-                        isPlaying = isPlaying,
+                        isPlaying = isPlaying && !showInlineLyrics,
                         clipStartMs = canvasArtwork?.clipStartMs,
                         clipEndMs = canvasArtwork?.clipEndMs,
                         modifier = Modifier.fillMaxSize()
