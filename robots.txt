@@ -1,0 +1,7 @@
+User-agent: Mediapartners-Google
+Disallow: /promo.html
+Allow: /
+
+User-agent: *
+Disallow: /promo.html
+Allow: /
